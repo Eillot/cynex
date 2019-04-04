@@ -32,7 +32,8 @@
     num =	666
     something  = wrong  #注释1
     #fdfdfd = fdfdfd    注释整行
-    refer= refer       //注释3        
+    refer= refer       //注释3     
+    note = agian       ;注释3        
     
 ```    
 #### 4、解析规则

@@ -5,5 +5,9 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	Load()
+	m, err := Load()
+	if err != nil {
+		t.Fail()
+	}
+	t.Log(m)
 }

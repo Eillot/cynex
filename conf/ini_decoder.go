@@ -1,8 +1,11 @@
 package conf
 
 import (
+	"bufio"
+	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -45,6 +48,68 @@ func LoadFile(path string) (map[string]string, error) {
 // 解析指定路径的文件
 // 将解析结果保存至confs，使用key、value存储
 func parseFile(path string, confs map[string]string) error {
+	section := ""
+	f, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	r := bufio.NewReader(f)
+	lineNum := 0
+	for {
+		lineBytes, _, err := r.ReadLine()
+		lineNum++
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			panic(err)
+		}
+		line := strings.TrimSpace(string(lineBytes))
+		// 判断注释定义
+		if strings.Index(line, "#") == 0 || strings.Index(line, ";") == 0 {
+			continue
+		}
+		// 判断节定义
+		iLeft := strings.Index(line, "[")
+		iRight := strings.Index(line, "]")
+		iSharp := strings.Index(line, "#")
+		iSemi := strings.Index(line, ";")
+		iSlash := strings.Index(line, "//")
+		if iLeft > -1 && iRight > -1 && iRight > iLeft+1 {
+			if (iSharp > -1 && iSharp < iRight) || (iSemi > -1 && iSemi < iRight) || (iSlash > -1 && iSlash < iRight) {
+				panic("config file syntax error: line " + strconv.Itoa(lineNum))
+			}
+			section = strings.TrimSpace(line[iLeft+1 : iRight])
+			continue
+		}
+		// 判断key = value配置定义
+		iEqual := strings.Index(line, "=")
+		if iEqual < 1 {
+			continue
+		}
+		key := strings.TrimSpace(line[:iEqual])
+		val := strings.TrimSpace(line[iEqual+1:])
 
+		if len(key) < 1 || strings.Contains(key, "#") || strings.Contains(key, ";") || strings.Contains(key, "//") {
+			continue
+		}
+		if strings.Index(val, "#") == 0 || strings.Index(val, ";") == 0 || strings.Index(val, "//") == 0 {
+			continue
+		}
+		if strings.Contains(val, "#") {
+			val = val[0:strings.Index(val, "#")]
+		}
+		if strings.Contains(val, ";") {
+			val = val[0:strings.Index(val, ";")]
+		}
+		if strings.Contains(val, "//") {
+			val = val[0:strings.Index(val, "//")]
+		}
+		if section != "" {
+			key = section + "." + key
+		}
+		confs[strings.TrimSpace(key)] = strings.TrimSpace(val)
+	}
 	return nil
 }

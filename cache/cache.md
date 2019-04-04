@@ -8,13 +8,13 @@
 
 ```
     cache := NewCache() // 使用默认容量
-    val,err := cache.Get("key")
+    val,err := cache.Get("key")  // 读取缓存
     
     if err != nil{
         fmt.println(val)
     }
     
-    cache.Set("key","value")
+    cache.Set("key","value")   // 设置缓存
     
 
 ```

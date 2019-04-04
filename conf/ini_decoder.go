@@ -78,7 +78,7 @@ func parseFile(path string, confs map[string]string) error {
 		iSlash := strings.Index(line, "//")
 		if iLeft > -1 && iRight > -1 && iRight > iLeft+1 {
 			if (iSharp > -1 && iSharp < iRight) || (iSemi > -1 && iSemi < iRight) || (iSlash > -1 && iSlash < iRight) {
-				panic("config file syntax error: line " + strconv.Itoa(lineNum))
+				panic("initialization file syntax error: line " + strconv.Itoa(lineNum))
 			}
 			section = strings.TrimSpace(line[iLeft+1 : iRight])
 			continue

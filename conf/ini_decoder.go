@@ -9,9 +9,7 @@ import (
 	"strings"
 )
 
-/**
- * 加载运行路径中的全部INI文件
- */
+// Load 加载运行路径中的全部INI文件
 func Load() (map[string]string, error) {
 	confs := make(map[string]string)
 	// 遍历当前程序运行路径，读取所有INI文件
@@ -34,9 +32,7 @@ func Load() (map[string]string, error) {
 	return confs, nil
 }
 
-/**
- * 加载指定路径的配置文件
- */
+// LoadFile 加载指定路径的配置文件
 func LoadFile(path string) (map[string]string, error) {
 	confs := make(map[string]string)
 	if err := parseFile(path, confs); err != nil {

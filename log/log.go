@@ -30,7 +30,7 @@ var infoF = log.New(logTargetFile(), "INFO    ", flag)
 var warningF = log.New(logTargetFile(), "WARNING ", flag)
 var errorF = log.New(logTargetFile(), "ERROR   ", flag)
 
-// Debug output debug level logs
+// Debug 输出调试级日志
 func Debug(v ...interface{}) {
 	_, p, l, _ := runtime.Caller(1)
 	wd, _ := os.Getwd()
@@ -46,7 +46,7 @@ func Debug(v ...interface{}) {
 	}
 }
 
-// Info output information level logs
+// Info 输出信息级日志
 func Info(v ...interface{}) {
 	_, p, l, _ := runtime.Caller(1)
 	wd, _ := os.Getwd()
@@ -63,7 +63,7 @@ func Info(v ...interface{}) {
 	}
 }
 
-// Warning output warning level logs
+// Warning 输出警告级日志
 func Warning(v ...interface{}) {
 	_, p, l, _ := runtime.Caller(1)
 	wd, _ := os.Getwd()
@@ -80,7 +80,7 @@ func Warning(v ...interface{}) {
 	}
 }
 
-// Error output error level logs
+// Error 输出错误级日志
 func Error(v ...interface{}) {
 	_, p, l, _ := runtime.Caller(1)
 	wd, _ := os.Getwd()

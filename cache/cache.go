@@ -5,7 +5,8 @@ import "errors"
 // 默认容量343
 const capability = 7 * 7 * 7
 
-// 使用LRU算法存储缓存
+// NewCache 创建缓存，
+// 使用LRU算法驱逐缓存中元素
 func NewCache(cap ...int) *Cache {
 	if len(cap) == 0 {
 		return &Cache{

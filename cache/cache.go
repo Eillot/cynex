@@ -2,118 +2,118 @@ package cache
 
 import "errors"
 
-// 默认容量
-const capability = 343
+// 默认容量343
+const capability = 7 * 7 * 7
 
 // 使用LRU算法存储缓存
 func NewCache(cap ...int) *Cache {
 	if len(cap) == 0 {
 		return &Cache{
-			Cap:     capability,
-			Size:    0,
-			Queue:   &LinkedList{Head: nil, Tail: nil},
-			HashMap: make(map[string]*Node, capability),
+			Cap:      capability,
+			Size:     0,
+			queue:    &linkedList{head: nil, tail: nil},
+			hashData: make(map[string]*node, capability),
 		}
 	} else {
 		return &Cache{
-			Cap:     cap[0],
-			Size:    0,
-			Queue:   &LinkedList{Head: nil, Tail: nil},
-			HashMap: make(map[string]*Node, cap[0]),
+			Cap:      cap[0],
+			Size:     0,
+			queue:    &linkedList{head: nil, tail: nil},
+			hashData: make(map[string]*node, cap[0]),
 		}
 	}
 }
 
 type Cache struct {
-	Cap     int
-	Size    int
-	Queue   *LinkedList
-	HashMap map[string]*Node
+	Cap      int // 容量
+	Size     int // 当前存储量
+	queue    *linkedList
+	hashData map[string]*node
 }
 
-type Node struct {
-	Key  string
-	Val  string
-	Prev *Node
-	Next *Node
+type node struct {
+	key  string
+	val  interface{}
+	prev *node
+	next *node
 }
 
-type LinkedList struct {
-	Head *Node
-	Tail *Node
+type linkedList struct {
+	head *node
+	tail *node
 }
 
-func (l *LinkedList) IsEmpty() bool {
-	if l.Head == nil && l.Tail == nil {
+func (l *linkedList) isEmpty() bool {
+	if l.head == nil && l.tail == nil {
 		return true
 	} else {
 		return false
 	}
 }
 
-func (l *LinkedList) RemoveLast() {
-	if l.Tail != nil {
-		l.Remove(l.Tail)
+func (l *linkedList) removeLast() {
+	if l.tail != nil {
+		l.remove(l.tail)
 	}
 }
 
-func (l *LinkedList) Remove(n *Node) {
-	if l.Head == l.Tail {
-		l.Head = nil
-		l.Tail = nil
+func (l *linkedList) remove(n *node) {
+	if l.head == l.tail {
+		l.head = nil
+		l.tail = nil
 		return
 	}
-	if n == l.Head {
-		n.Next.Prev = nil
-		l.Head = n.Next
+	if n == l.head {
+		n.next.prev = nil
+		l.head = n.next
 		return
 	}
-	if n == l.Tail {
-		n.Prev.Next = nil
-		l.Tail = n.Prev
+	if n == l.tail {
+		n.prev.next = nil
+		l.tail = n.prev
 		return
 	}
-	n.Prev.Next = n.Next
-	n.Next.Prev = n.Prev
+	n.prev.next = n.next
+	n.next.prev = n.prev
 }
 
-func (l *LinkedList) AddFirst(n *Node) {
-	if l.Head == nil {
-		l.Head = n
-		l.Tail = n
-		n.Prev = nil
-		n.Next = nil
+func (l *linkedList) addFirst(n *node) {
+	if l.head == nil {
+		l.head = n
+		l.tail = n
+		n.prev = nil
+		n.next = nil
 		return
 	}
-	n.Next = l.Head
-	l.Head.Prev = n
-	l.Head = n
-	n.Prev = nil
+	n.next = l.head
+	l.head.prev = n
+	l.head = n
+	n.prev = nil
 }
 
-func (c *Cache) Get(key string) (string, error) {
-	if node, ok := c.HashMap[key]; ok {
-		c.Queue.Remove(node)
-		c.Queue.AddFirst(node)
-		return node.Val, nil
+func (c *Cache) Get(key string) (interface{}, error) {
+	if n, ok := c.hashData[key]; ok {
+		c.queue.remove(n)
+		c.queue.addFirst(n)
+		return n.val, nil
 	}
 	return "", errors.New("not exist")
 }
 
-func (c *Cache) Set(key, val string) {
-	if node, ok := c.HashMap[key]; ok {
-		c.Queue.Remove(node)
-		node.Val = val
-		c.Queue.AddFirst(node)
+func (c *Cache) Set(key string, val interface{}) {
+	if n, ok := c.hashData[key]; ok {
+		c.queue.remove(n)
+		n.val = val
+		c.queue.addFirst(n)
 	} else {
-		n := &Node{Key: key, Val: val, Prev: nil, Next: nil}
-		c.HashMap[key] = n
-		c.Queue.AddFirst(n)
+		n := &node{key: key, val: val, prev: nil, next: nil}
+		c.hashData[key] = n
+		c.queue.addFirst(n)
 		c.Size += 1
 		if c.Size > c.Cap {
 			c.Size -= 1
-			delete(c.HashMap, c.Queue.Tail.Key)
-			c.Queue.RemoveLast()
+			delete(c.hashData, c.queue.tail.key)
+			c.queue.removeLast()
 		}
 	}
 }

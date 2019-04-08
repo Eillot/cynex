@@ -19,5 +19,10 @@ func TestCache_Set(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		cache.Set("key"+strconv.Itoa(i), "val"+strconv.Itoa(i))
 	}
-	fmt.Println(cache.HashMap)
+	fmt.Println(cache.hashData)
+	cache = NewCache()
+	for i := 0; i < 343; i++ {
+		cache.Set("key"+strconv.Itoa(i), "val"+strconv.Itoa(i))
+	}
+	fmt.Println(cache.hashData)
 }

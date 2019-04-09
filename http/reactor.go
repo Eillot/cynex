@@ -19,8 +19,6 @@ type Reactor struct {
 
 	pathTree  *ptree       // 路径树
 	pathCache *cache.Cache // 路由动态缓存
-
-	extraForm map[string]string // 路径变量
 }
 
 func (re *Reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -77,7 +75,6 @@ func init() {
 	reactor = &Reactor{
 		pathTree:  pathTree,
 		pathCache: cache.NewCache(),
-		extraForm: make(map[string]string),
 	}
 }
 

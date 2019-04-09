@@ -75,41 +75,20 @@ func BindStatic(urlPrefix string, localPrefix string) {
 // BindDownload 提供文件下载绑定
 // 参数 url: 文件请求路径；path: 文件下载路径（将被连接至downloadDir后形成全路径）
 func BindDownload(url string, path string) {
-	var cUrl string
 	if strings.LastIndex(url, "/") == len(url)-1 {
-		cUrl = url[:len(url)-1]
-	} else {
-		cUrl = url
+		url = url[:len(url)-1]
 	}
-	var cPath string
 	if strings.Index(path, "/") != 0 {
-		cPath = "/" + path
-	} else {
-		cPath = path
+		path = "/" + path
 	}
-	handler.downloads[cUrl] = cPath
-	log.Info("已绑定下载文件请求路径：" + cUrl)
+	handler.downloads[url] = path
+	log.Info("已绑定下载文件请求路径：" + url)
 }
 
 func (re *reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	re.Request = r
 	re.ResponseWriter = w
-	// 静态文件处理
-	if p, err := re.isStatic(r.RequestURI); err == nil {
-		if err = re.handleStatic(p, w); err != nil {
-			w.Write([]byte(err.Error()))
-		}
-		return
-	}
-	//./
-	// 下载文件处理
-	if p, err := re.isDownload(r.RequestURI); err == nil {
-		if err = re.handleDownload(p, w); err != nil {
-			w.Write([]byte(err.Error()))
-		}
-		return
-	}
-	//./
+
 	re.Request.ParseForm()
 	key := strings.ToUpper(r.Method) + ":" + r.RequestURI
 	log.Debug("接收并处理请求===> " + key)
@@ -128,6 +107,22 @@ func (re *reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				go re.pathCache.Set(key, function)
 			}
 		} else {
+			// 静态文件处理
+			if p, err := re.isStatic(r.RequestURI); err == nil {
+				if err = re.handleStatic(p, w); err != nil {
+					w.Write([]byte(err.Error()))
+				}
+				return
+			}
+			//./
+			// 下载文件处理
+			if p, err := re.isDownload(r.RequestURI); err == nil {
+				if err = re.handleDownload(p, w); err != nil {
+					w.Write([]byte(err.Error()))
+				}
+				return
+			}
+			//./
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Not Found."))
 		}
@@ -314,18 +309,14 @@ func (re *reactor) handleStatic(filePath string, w http.ResponseWriter) error {
 
 // 是否是下载文件
 func (re *reactor) isDownload(uri string) (string, error) {
-	var cUri string
 	if strings.LastIndex(uri, "/") == len(uri)-1 {
-		cUri = uri[:len(uri)-1]
-	} else {
-		cUri = uri
+		uri = uri[:len(uri)-1]
 	}
-	val, err := re.downloadCache.Get(cUri)
-	if err == nil {
+	if val, err := re.downloadCache.Get(uri); err == nil {
 		return val.(string), nil
 	}
 	for key, val := range re.downloads {
-		if key == cUri {
+		if key == uri {
 			var pp string
 			if Server.downloadDir == "." || Server.downloadDir == "./" {
 				pp, _ = os.Getwd()
@@ -333,7 +324,7 @@ func (re *reactor) isDownload(uri string) (string, error) {
 				pp = Server.downloadDir
 			}
 			rVal := pp + val
-			go re.downloadCache.Set(cUri, rVal)
+			go re.downloadCache.Set(uri, rVal)
 			log.Debug("下载文件：" + uri)
 			return rVal, nil
 		}

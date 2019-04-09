@@ -1,7 +1,29 @@
 package http
 
-import "net/http"
+import (
+	"cynex/log"
+	"net/http"
+)
 
-func Start() {
-	http.ListenAndServe(":8080", reactor)
+var Server *server
+
+type server struct {
+	handler     *reactor
+	downloadDir string
+}
+
+func init() {
+	Server = &server{
+		handler:     handler,
+		downloadDir: ".",
+	}
+}
+
+func (s *server) Start() {
+	log.Info("正在启动服务...")
+	http.ListenAndServe(":8080", s.handler)
+}
+
+func StopServer() {
+
 }

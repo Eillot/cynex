@@ -8,7 +8,7 @@ import (
 )
 
 type User struct {
-	Reactor
+	reactor
 }
 
 func (u *User) Index() {
@@ -20,9 +20,9 @@ func (u *User) Hello() {
 }
 
 func TestGet(t *testing.T) {
-	Get("/index/[*nd*]/{index}", &User{}, "Index")
-	Get("/index/rbdex/{bbb}", &User{}, "Hello")
-	Start()
+	BindGet("/index/[*nd*]/{index}", &User{}, "Index")
+	BindGet("/index/rbdex/{bbb}", &User{}, "Hello")
+
 }
 
 func BenchmarkGet(b *testing.B) {

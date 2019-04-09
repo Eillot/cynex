@@ -19,6 +19,7 @@ var Dir = ""
 
 // 日志输出配置初始化
 const flag = log.Ldate | log.Ltime
+const skip = 2
 
 var debug = log.New(os.Stdout, "DEBUG   ", flag)
 var info = log.New(os.Stdout, "INFO    ", flag)
@@ -32,7 +33,7 @@ var errorF = log.New(logTargetFile(), "ERROR   ", flag)
 
 // Debug 输出调试级日志
 func Debug(v ...interface{}) {
-	_, p, l, _ := runtime.Caller(1)
+	_, p, l, _ := runtime.Caller(skip)
 	wd, _ := os.Getwd()
 	fileName := p[len(wd):] + ":" + strconv.Itoa(l)
 	v2 := make([]interface{}, len(v)-1)
@@ -48,7 +49,7 @@ func Debug(v ...interface{}) {
 
 // Info 输出信息级日志
 func Info(v ...interface{}) {
-	_, p, l, _ := runtime.Caller(1)
+	_, p, l, _ := runtime.Caller(skip)
 	wd, _ := os.Getwd()
 	fileName := p[len(wd):] + ":" + strconv.Itoa(l)
 	v2 := make([]interface{}, len(v)-1)
@@ -65,7 +66,7 @@ func Info(v ...interface{}) {
 
 // Warning 输出警告级日志
 func Warning(v ...interface{}) {
-	_, p, l, _ := runtime.Caller(1)
+	_, p, l, _ := runtime.Caller(skip)
 	wd, _ := os.Getwd()
 	fileName := p[len(wd):] + ":" + strconv.Itoa(l)
 	v2 := make([]interface{}, len(v)-1)
@@ -82,7 +83,7 @@ func Warning(v ...interface{}) {
 
 // Error 输出错误级日志
 func Error(v ...interface{}) {
-	_, p, l, _ := runtime.Caller(1)
+	_, p, l, _ := runtime.Caller(skip)
 	wd, _ := os.Getwd()
 	fileName := p[len(wd):] + ":" + strconv.Itoa(l)
 	v2 := make([]interface{}, len(v)-1)

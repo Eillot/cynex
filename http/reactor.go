@@ -17,8 +17,8 @@ type Reactor struct {
 	ResponseWriter http.ResponseWriter // http.ResponseWriter
 	Request        *http.Request       // *http.Request
 
-	pathTree *ptree       // 路径树
-	dynamic  *cache.Cache // 路由动态缓存
+	pathTree  *ptree       // 路径树
+	pathCache *cache.Cache // 路由动态缓存
 
 	extraForm map[string]string // 路径变量
 }
@@ -26,15 +26,15 @@ type Reactor struct {
 func (re *Reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	re.Request = r
 	re.ResponseWriter = w
-	key := r.RequestURI + ":" + strings.ToUpper(r.Method)
+	key := strings.ToUpper(r.Method) + ":" + r.RequestURI
 	var function reflect.Value
-	if val, err := re.dynamic.Get(key); err == nil {
+	if val, err := re.pathCache.Get(key); err == nil {
 		function = val.(reflect.Value)
 		function.Call(nil)
 	} else {
 		if function, err = re.getMatchHandler(key); err == nil {
 			function.Call(nil)
-			go re.dynamic.Set(key, function)
+			go re.pathCache.Set(key, function)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Not Found."))
@@ -69,14 +69,14 @@ func init() {
 	}
 	reactor = &Reactor{
 		pathTree:  pathTree,
-		dynamic:   cache.NewCache(),
+		pathCache: cache.NewCache(),
 		extraForm: make(map[string]string),
 	}
 }
 
 // 路径处理注册
 func (re *Reactor) register(path string, function reflect.Value, method string) {
-	key := path + ":" + method
+	key := method + ":" + path
 	re.addHandler(key, function)
 }
 

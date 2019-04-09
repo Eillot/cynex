@@ -4,20 +4,11 @@ import (
 	"net/http"
 )
 
-var defaultController *Controller
-
 type Controller struct {
-	handler *reactor
-}
-
-func init() {
-	defaultController = &Controller{
-		handler: handler,
-	}
 }
 
 func (c *Controller) GetCookie(name string) string {
-	if cookie, err := c.handler.Request.Cookie(name); err == nil {
+	if cookie, err := handler.Request.Cookie(name); err == nil {
 		return cookie.Value
 	}
 	return ""
@@ -29,6 +20,7 @@ func (c *Controller) SetCookie(name, value string, expireAfter int) {
 		Value:    value,
 		MaxAge:   expireAfter,
 		HttpOnly: false,
+		SameSite: http.SameSiteStrictMode,
 	}
-	c.handler.ResponseWriter.Header().Set("Set-Cookie", cookie.String())
+	http.SetCookie(handler.ResponseWriter, cookie)
 }

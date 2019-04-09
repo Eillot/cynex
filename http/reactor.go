@@ -14,8 +14,8 @@ import (
 var reactor *Reactor
 
 type Reactor struct {
-	w http.ResponseWriter // http.ResponseWriter
-	r *http.Request       // *http.Request
+	ResponseWriter http.ResponseWriter // http.ResponseWriter
+	Request        *http.Request       // *http.Request
 
 	pathTree *ptree       // 路径树
 	dynamic  *cache.Cache // 路由动态缓存
@@ -24,17 +24,17 @@ type Reactor struct {
 }
 
 func (re *Reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	re.r = r
-	re.w = w
+	re.Request = r
+	re.ResponseWriter = w
 	key := r.RequestURI + ":" + strings.ToUpper(r.Method)
 	var function reflect.Value
 	if val, err := re.dynamic.Get(key); err == nil {
 		function = val.(reflect.Value)
 		function.Call(nil)
 	} else {
-		if function, err = re.getHandler(key); err == nil {
+		if function, err = re.getMatchHandler(key); err == nil {
 			function.Call(nil)
-			re.dynamic.Set(key, function)
+			go re.dynamic.Set(key, function)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Not Found."))
@@ -62,7 +62,7 @@ func Post(url string, comp interface{}, function string) {
 func init() {
 	pathTree := &ptree{
 		root: &node{
-			name: "",
+			name: "ROOT",
 			sub:  *new([]*node),
 			val:  reflect.Value{},
 		},
@@ -90,6 +90,7 @@ type ptree struct {
 	root *node
 }
 
+// 保存路由配置
 func (re *Reactor) addHandler(path string, function reflect.Value) {
 	splits := strings.Split(path, "/")
 	cnode := re.pathTree.root
@@ -98,7 +99,7 @@ func (re *Reactor) addHandler(path string, function reflect.Value) {
 			continue
 		}
 		if i < len(splits)-2 {
-			if n, err := re.checkSetExist(cnode.sub, val); err == nil {
+			if n, err := re.inSet(cnode.sub, val); err == nil {
 				cnode = n
 			} else {
 				n := new(node)
@@ -109,7 +110,7 @@ func (re *Reactor) addHandler(path string, function reflect.Value) {
 			}
 			continue
 		} else {
-			if n, err := re.checkSetExist(cnode.sub, val); err == nil {
+			if n, err := re.inSet(cnode.sub, val); err == nil {
 				n.val = function
 			} else {
 				n := new(node)
@@ -122,7 +123,8 @@ func (re *Reactor) addHandler(path string, function reflect.Value) {
 	}
 }
 
-func (re *Reactor) checkSetExist(sub []*node, name string) (*node, error) {
+// 是否已经设定路由
+func (re *Reactor) inSet(sub []*node, name string) (*node, error) {
 	for _, n := range sub {
 		if n.name == name {
 			return n, nil
@@ -131,34 +133,35 @@ func (re *Reactor) checkSetExist(sub []*node, name string) (*node, error) {
 	return nil, errors.New("not exist")
 }
 
-func (re *Reactor) getHandler(path string) (reflect.Value, error) {
-	rerr := errors.New("not exist")
+// 获取匹配当前请求路径的处理方法
+func (re *Reactor) getMatchHandler(path string) (reflect.Value, error) {
+	rErr := errors.New("not exist")
 	splits := strings.Split(path, "/")
-	cnode := re.pathTree.root
+	curNode := re.pathTree.root
 	for i, val := range splits {
 		if strings.TrimSpace(val) == "" {
 			continue
 		}
 		if i < len(splits)-2 {
-			if n, err := re.checkGetExist(cnode.sub, val); err == nil {
-				cnode = n
+			if n, err := re.exists(curNode.sub, val); err == nil {
+				curNode = n
 				continue
-			} else {
-				return reflect.Value{}, rerr
 			}
+			return reflect.Value{}, rErr
 		} else {
-			if n, err := re.checkGetExist(cnode.sub, val); err == nil {
+			if n, err := re.exists(curNode.sub, val); err == nil {
 				return n.val, nil
-			} else {
-				return reflect.Value{}, rerr
 			}
+			return reflect.Value{}, rErr
 		}
 	}
-	return reflect.Value{}, rerr
+	return reflect.Value{}, rErr
 }
 
-func (re *Reactor) checkGetExist(sub []*node, name string) (*node, error) {
-	rerr := errors.New("not exist")
+// 是否存在已经保存的路由设置
+// 支持全路径匹配、正则匹配、常用匹配、变量路径
+func (re *Reactor) exists(sub []*node, name string) (*node, error) {
+	rErr := errors.New("not exist")
 	for _, n := range sub {
 		if strings.Index(n.name, "(") == 0 && strings.Index(n.name, ")") == len(n.name)-1 {
 			// 正则匹配
@@ -168,12 +171,11 @@ func (re *Reactor) checkGetExist(sub []*node, name string) (*node, error) {
 			}
 			if reg.MatchString(name) {
 				return n, nil
-			} else {
-				return nil, rerr
 			}
+			return nil, rErr
 		}
 		if strings.Index(n.name, "[") == 0 && strings.Index(n.name, "]") == len(n.name)-1 {
-			// 常用匹配
+			// 常用匹配，使用*号匹配常用字符串
 			t := n.name[1 : len(n.name)-1]
 			if t == "*" {
 				return n, nil
@@ -182,34 +184,34 @@ func (re *Reactor) checkGetExist(sub []*node, name string) (*node, error) {
 				if strings.Contains(name, t[1:len(t)-1]) {
 					return n, nil
 				}
-				return nil, rerr
+				return nil, rErr
 			}
 			if strings.Index(t, "*") == 0 {
 				m := t[1:]
 				if i := strings.Index(name, m); i > -1 && i+len(m) == len(name) {
 					return n, nil
 				}
-				return nil, rerr
+				return nil, rErr
 			}
 			if strings.Index(t, "*") == len(t)-1 {
 				m := t[:len(t)-1]
 				if strings.Index(name, m) == 0 {
 					return n, nil
-				} else {
-					return nil, rerr
 				}
+				return nil, rErr
 			}
 
 		}
 		if strings.Index(n.name, "{") == 0 && strings.Index(n.name, "}") == len(n.name)-1 {
-			// 路径变量匹配
+			// 变量路径匹配，含有路径变量，将路径中的值作为匹配变量的值存储Request
 			re.extraForm[n.name[1:len(n.name)-1]] = name
+			re.Request.Form[n.name[1:len(n.name)-1]] = []string{name}
 			return n, nil
 		}
-		// 静态匹配
+		// 全路径匹配
 		if n.name == name {
 			return n, nil
 		}
 	}
-	return nil, rerr
+	return nil, rErr
 }

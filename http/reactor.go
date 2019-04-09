@@ -124,7 +124,7 @@ func (re *reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			//./
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not Found."))
+			w.Write([]byte("Not Found"))
 		}
 	}
 

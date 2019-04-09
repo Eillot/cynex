@@ -40,9 +40,9 @@ func Debug(v ...interface{}) {
 	for _, vv := range v {
 		v2 = append(v2, vv)
 	}
-	go debug.Println(v2...)
+	debug.Println(v2...)
 	if strings.ToLower(strings.TrimSpace(Threshold)) == "debug" {
-		go debugF.Println(v2...)
+		debugF.Println(v2...)
 	}
 }
 
@@ -56,10 +56,10 @@ func Info(v ...interface{}) {
 	for _, vv := range v {
 		v2 = append(v2, vv)
 	}
-	go info.Println(v2...)
+	info.Println(v2...)
 	threshold := strings.ToLower(strings.TrimSpace(Threshold))
 	if threshold == "debug" || threshold == "info" {
-		go infoF.Println(v2...)
+		infoF.Println(v2...)
 	}
 }
 
@@ -73,10 +73,10 @@ func Warning(v ...interface{}) {
 	for _, vv := range v {
 		v2 = append(v2, vv)
 	}
-	go waring.Println(v2...)
+	waring.Println(v2...)
 	threshold := strings.ToLower(strings.TrimSpace(Threshold))
 	if threshold == "debug" || threshold == "info" || threshold == "warning" {
-		go warningF.Println(v2...)
+		warningF.Println(v2...)
 	}
 }
 
@@ -90,8 +90,8 @@ func Error(v ...interface{}) {
 	for _, vv := range v {
 		v2 = append(v2, vv)
 	}
-	go error.Println(v2...)
-	go errorF.Println(v2...)
+	error.Println(v2...)
+	errorF.Println(v2...)
 }
 
 func logTargetFile() io.Writer {

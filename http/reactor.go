@@ -50,6 +50,7 @@ func init() {
 // BindGet 提供GET方式的HTTP访问
 // 参数 url:将要注册处理的请求路径;comp:使用此组件中的方法处理请求;function:使用（指定组件中的）此方法处理请求;
 func BindGet(url string, comp interface{}, function string) {
+	url = stripLastSlash(url)
 	v := reflect.ValueOf(comp)
 	hf := v.MethodByName(function)
 	handler.register(url, hf, "GET")
@@ -59,6 +60,7 @@ func BindGet(url string, comp interface{}, function string) {
 // BindPost 提供POST方式的HTTP访问
 // 参数 url:将要注册处理的请求路径;comp:使用此组件中的方法处理请求;function:使用（指定组件中的）此方法处理请求;
 func BindPost(url string, comp interface{}, function string) {
+	url = stripLastSlash(url)
 	v := reflect.ValueOf(comp)
 	hf := v.MethodByName(function)
 	handler.register(url, hf, "POST")
@@ -68,6 +70,9 @@ func BindPost(url string, comp interface{}, function string) {
 // BindStatic 提供静态文件绑定
 // 参数 urlPrefix: 绑定路径前缀；localPrefix: 本地路径（工作目录内）前缀
 func BindStatic(urlPrefix string, localPrefix string) {
+	urlPrefix = stripLastSlash(urlPrefix)
+	localPrefix = stripLastSlash(localPrefix)
+	localPrefix = completeFirstSlash(localPrefix)
 	handler.statics[urlPrefix] = localPrefix
 	log.Info("已绑定静态文件目录前置路径：" + urlPrefix)
 }
@@ -75,12 +80,8 @@ func BindStatic(urlPrefix string, localPrefix string) {
 // BindDownload 提供文件下载绑定
 // 参数 url: 文件请求路径；path: 文件下载路径（将被连接至downloadDir后形成全路径）
 func BindDownload(url string, path string) {
-	if strings.LastIndex(url, "/") == len(url)-1 {
-		url = url[:len(url)-1]
-	}
-	if strings.Index(path, "/") != 0 {
-		path = "/" + path
-	}
+	url = stripLastSlash(url)
+	path = completeFirstSlash(path)
 	handler.downloads[url] = path
 	log.Info("已绑定下载文件请求路径：" + url)
 }
@@ -88,9 +89,10 @@ func BindDownload(url string, path string) {
 func (re *reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	re.Request = r
 	re.ResponseWriter = w
-
 	re.Request.ParseForm()
-	key := strings.ToUpper(r.Method) + ":" + r.RequestURI
+	var uri = r.RequestURI
+	uri = stripLastSlash(uri)
+	key := strings.ToUpper(r.Method) + ":" + uri
 	log.Debug("接收并处理请求===> " + key)
 	var function reflect.Value
 	if val, err := re.pathCache.Get(key); err == nil {
@@ -108,7 +110,7 @@ func (re *reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			// 静态文件处理
-			if p, err := re.isStatic(r.RequestURI); err == nil {
+			if p, err := re.isStatic(uri); err == nil {
 				if err = re.handleStatic(p, w); err != nil {
 					w.Write([]byte(err.Error()))
 				}
@@ -116,7 +118,7 @@ func (re *reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			//./
 			// 下载文件处理
-			if p, err := re.isDownload(r.RequestURI); err == nil {
+			if p, err := re.isDownload(uri); err == nil {
 				if err = re.handleDownload(p, w); err != nil {
 					w.Write([]byte(err.Error()))
 				}
@@ -309,9 +311,6 @@ func (re *reactor) handleStatic(filePath string, w http.ResponseWriter) error {
 
 // 是否是下载文件
 func (re *reactor) isDownload(uri string) (string, error) {
-	if strings.LastIndex(uri, "/") == len(uri)-1 {
-		uri = uri[:len(uri)-1]
-	}
 	if val, err := re.downloadCache.Get(uri); err == nil {
 		return val.(string), nil
 	}
@@ -347,4 +346,18 @@ func (re *reactor) handleDownload(filePath string, w http.ResponseWriter) error 
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+fi.Name()+"\"")
 	io.Copy(w, f)
 	return nil
+}
+
+func stripLastSlash(uri string) string {
+	if strings.LastIndex(uri, "/") == len(uri)-1 {
+		uri = uri[:len(uri)-1]
+	}
+	return uri
+}
+
+func completeFirstSlash(path string) string {
+	if strings.Index(path, "/") != 0 {
+		path = "/" + path
+	}
+	return path
 }

@@ -1,6 +1,8 @@
 package http
 
-import "net/http"
+import (
+	"net/http"
+)
 
 var defaultController *Controller
 
@@ -28,5 +30,5 @@ func (c *Controller) SetCookie(name, value string, expireAfter int) {
 		MaxAge:   expireAfter,
 		HttpOnly: false,
 	}
-	c.handler.Request.AddCookie(cookie)
+	c.handler.ResponseWriter.Header().Set("Set-Cookie", cookie.String())
 }

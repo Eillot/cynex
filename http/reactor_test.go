@@ -21,7 +21,7 @@ func (u *User) Hello() {
 
 func TestGet(t *testing.T) {
 	Get("/index/[*nd*]/{index}", &User{}, "Index")
-	Post("/hello", &User{}, "Hello")
+	Get("/index/rbdex/{bbb}", &User{}, "Hello")
 	Start()
 }
 

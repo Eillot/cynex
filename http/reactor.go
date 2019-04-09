@@ -26,6 +26,7 @@ type Reactor struct {
 func (re *Reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	re.Request = r
 	re.ResponseWriter = w
+	re.Request.ParseForm()
 	key := strings.ToUpper(r.Method) + ":" + r.RequestURI
 	var function reflect.Value
 	if val, err := re.pathCache.Get(key); err == nil {
@@ -34,7 +35,13 @@ func (re *Reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		if function, err = re.getMatchHandler(key); err == nil {
 			function.Call(nil)
-			go re.pathCache.Set(key, function)
+			iLeft := strings.Index(key, "{")
+			iRight := strings.Index(key, "}")
+			if iLeft < 0 && iRight < 0 {
+				// 不包含变量路径时，存储缓存
+				// 包含变量路径时，需将路径参数值保存至Request，故不可使用缓存
+				go re.pathCache.Set(key, function)
+			}
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Not Found."))
@@ -98,7 +105,7 @@ func (re *Reactor) addHandler(path string, function reflect.Value) {
 		if strings.TrimSpace(val) == "" {
 			continue
 		}
-		if i < len(splits)-2 {
+		if i < len(splits)-1 {
 			if n, err := re.inSet(cnode.sub, val); err == nil {
 				cnode = n
 			} else {
@@ -142,7 +149,7 @@ func (re *Reactor) getMatchHandler(path string) (reflect.Value, error) {
 		if strings.TrimSpace(val) == "" {
 			continue
 		}
-		if i < len(splits)-2 {
+		if i < len(splits)-1 {
 			if n, err := re.exists(curNode.sub, val); err == nil {
 				curNode = n
 				continue
@@ -204,8 +211,10 @@ func (re *Reactor) exists(sub []*node, name string) (*node, error) {
 		}
 		if strings.Index(n.name, "{") == 0 && strings.Index(n.name, "}") == len(n.name)-1 {
 			// 变量路径匹配，含有路径变量，将路径中的值作为匹配变量的值存储Request
-			re.extraForm[n.name[1:len(n.name)-1]] = name
-			re.Request.Form[n.name[1:len(n.name)-1]] = []string{name}
+			formName := n.name[1 : len(n.name)-1]
+			formValue := re.Request.Form[formName]
+			formValue = append(formValue, name)
+			re.Request.Form[formName] = formValue
 			return n, nil
 		}
 		// 全路径匹配

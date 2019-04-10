@@ -1,6 +1,9 @@
 package cache
 
-import "errors"
+import (
+	"errors"
+	"sync"
+)
 
 // 默认容量343
 const capability = 7 * 7 * 7
@@ -14,6 +17,7 @@ func NewCache(cap ...int) *Cache {
 			Size:     0,
 			queue:    &linkedList{head: nil, tail: nil},
 			hashData: make(map[string]*node, capability),
+			mu:       sync.RWMutex{},
 		}
 	} else {
 		return &Cache{
@@ -21,15 +25,18 @@ func NewCache(cap ...int) *Cache {
 			Size:     0,
 			queue:    &linkedList{head: nil, tail: nil},
 			hashData: make(map[string]*node, cap[0]),
+			mu:       sync.RWMutex{},
 		}
 	}
 }
 
 type Cache struct {
-	Cap      int // 容量
-	Size     int // 当前存储量
+	Cap  int // 容量
+	Size int // 当前存储量
+
 	queue    *linkedList
 	hashData map[string]*node
+	mu       sync.RWMutex
 }
 
 type node struct {
@@ -93,6 +100,8 @@ func (l *linkedList) addFirst(n *node) {
 }
 
 func (c *Cache) Get(key string) (interface{}, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if n, ok := c.hashData[key]; ok {
 		c.queue.remove(n)
 		c.queue.addFirst(n)
@@ -102,6 +111,8 @@ func (c *Cache) Get(key string) (interface{}, error) {
 }
 
 func (c *Cache) Set(key string, val interface{}) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if n, ok := c.hashData[key]; ok {
 		c.queue.remove(n)
 		n.val = val

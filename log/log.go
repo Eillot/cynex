@@ -71,7 +71,10 @@ func logTargetFile() io.Writer {
 	if strings.TrimSpace(Dir) == "" {
 		logFileName = "./" + date + ".log"
 	} else {
-		logFileName = Dir + "/" + date + ".log"
+		if strings.LastIndex(Dir, "/") != len(Dir)-1 {
+			Dir = Dir + "/"
+		}
+		logFileName = Dir + date + ".log"
 	}
 	logFile, err := os.OpenFile(logFileName, os.O_CREATE|os.O_APPEND|os.O_RDWR, os.ModePerm)
 	if err != nil {
@@ -87,13 +90,12 @@ func output(v []interface{}) string {
 	if strings.Contains(p, wd) {
 		fn = p[len(wd):] + ":" + strconv.Itoa(l)
 		return fmt.Sprintf(fn+" %s", v...)
-	} else {
-		for i := 0; i < 7; i++ {
-			_, p, l, _ = runtime.Caller(i)
-			if strings.Contains(p, wd) {
-				fn = p[len(wd):] + ":" + strconv.Itoa(l)
-				skip = i
-			}
+	}
+	for i := 0; i < 7; i++ {
+		_, p, l, _ = runtime.Caller(i)
+		if strings.Contains(p, wd) {
+			fn = p[len(wd):] + ":" + strconv.Itoa(l)
+			skip = i
 		}
 	}
 	return fmt.Sprintf(fn+" %s", v...)

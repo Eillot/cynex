@@ -12,14 +12,20 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 )
 
-var handler *reactor
+var defaultRouter *router
+var defaultHandler *handler
 
 type reactor struct {
 	ResponseWriter http.ResponseWriter // http.ResponseWriter
 	Request        *http.Request       // *http.Request
 
+	from *sync.Pool
+}
+
+type router struct {
 	pathTree  *ptree       // 路径树
 	pathCache *cache.Cache // 路由动态缓存
 
@@ -27,6 +33,10 @@ type reactor struct {
 	staticCache   *cache.Cache      // 静态文件缓存
 	downloads     map[string]string // 下载文件
 	downloadCache *cache.Cache      // 下载文件缓存
+}
+
+type handler struct {
+	pool *sync.Pool
 }
 
 func init() {
@@ -37,13 +47,20 @@ func init() {
 			val:  reflect.Value{},
 		},
 	}
-	handler = &reactor{
+	defaultRouter = &router{
 		pathTree:      pathTree,
 		pathCache:     cache.NewCache(),
 		statics:       make(map[string]string),
 		staticCache:   cache.NewCache(7 * 7),
 		downloads:     make(map[string]string),
 		downloadCache: cache.NewCache(7 * 7),
+	}
+	defaultHandler = &handler{
+		pool: &sync.Pool{
+			New: func() interface{} {
+				return new(reactor)
+			},
+		},
 	}
 }
 
@@ -53,8 +70,8 @@ func BindGet(url string, comp interface{}, function string) {
 	url = stripLastSlash(url)
 	v := reflect.ValueOf(comp)
 	hf := v.MethodByName(function)
-	handler.register(url, hf, "GET")
-	handler.register(url, hf, "OPTIONS")
+	defaultRouter.register(url, hf, "GET")
+	defaultRouter.register(url, hf, "OPTIONS")
 	log.Info("已绑定GET方法路径：" + url)
 }
 
@@ -64,8 +81,8 @@ func BindPost(url string, comp interface{}, function string) {
 	url = stripLastSlash(url)
 	v := reflect.ValueOf(comp)
 	hf := v.MethodByName(function)
-	handler.register(url, hf, "POST")
-	handler.register(url, hf, "OPTIONS")
+	defaultRouter.register(url, hf, "POST")
+	defaultRouter.register(url, hf, "OPTIONS")
 	log.Info("已绑定POST方法路径：" + url)
 }
 
@@ -75,7 +92,7 @@ func BindStatic(urlPrefix string, localPrefix string) {
 	urlPrefix = stripLastSlash(urlPrefix)
 	localPrefix = stripLastSlash(localPrefix)
 	localPrefix = completeFirstSlash(localPrefix)
-	handler.statics[urlPrefix] = localPrefix
+	defaultRouter.statics[urlPrefix] = localPrefix
 	log.Info("已绑定静态文件目录前置路径：" + urlPrefix)
 }
 
@@ -84,23 +101,30 @@ func BindStatic(urlPrefix string, localPrefix string) {
 func BindDownload(url string, path string) {
 	url = stripLastSlash(url)
 	path = completeFirstSlash(path)
-	handler.downloads[url] = path
+	defaultRouter.downloads[url] = path
 	log.Info("已绑定下载文件请求路径：" + url)
 }
 
-func (re *reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	re.Request = r
+func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	re := h.pool.Get().(*reactor)
 	re.ResponseWriter = w
+	re.Request = r
+	re.from = h.pool
+	go acceptAndProcess(re)
+}
+
+func acceptAndProcess(re *reactor) {
+	defer re.from.Put(re)
 	re.Request.ParseForm()
-	var uri = r.RequestURI
+	var uri = re.Request.RequestURI
 	if qi := strings.Index(uri, "?"); qi > 0 {
 		uri = uri[:qi]
 	}
 	uri = stripLastSlash(uri)
-	key := strings.ToUpper(r.Method) + ":" + uri
+	key := strings.ToUpper(re.Request.Method) + ":" + uri
 	log.Debug("接收并处理请求===> " + key)
 	var function reflect.Value
-	if val, err := re.pathCache.Get(key); err == nil {
+	if val, err := defaultRouter.pathCache.Get(key); err == nil {
 		function = val.(reflect.Value)
 		function.Call(nil)
 	} else {
@@ -111,36 +135,35 @@ func (re *reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if iLeft < 0 && iRight < 0 {
 				// 不包含变量路径时，存储缓存
 				// 包含变量路径时，需将路径参数值保存至Request，故不可使用缓存
-				go re.pathCache.Set(key, function)
+				go defaultRouter.pathCache.Set(key, function)
 			}
 		} else {
 			// 静态文件处理
 			if p, err := re.isStatic(uri); err == nil {
-				if err = re.handleStatic(p, w); err != nil {
-					w.Write([]byte(err.Error()))
+				if err = re.handleStatic(p, re.ResponseWriter); err != nil {
+					re.ResponseWriter.Write([]byte(err.Error()))
 				}
 				return
 			}
 			//./
 			// 下载文件处理
 			if p, err := re.isDownload(uri); err == nil {
-				if err = re.handleDownload(p, w); err != nil {
-					w.Write([]byte(err.Error()))
+				if err = re.handleDownload(p, re.ResponseWriter); err != nil {
+					re.ResponseWriter.Write([]byte(err.Error()))
 				}
 				return
 			}
 			//./
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not Found"))
+			re.ResponseWriter.WriteHeader(http.StatusNotFound)
+			re.ResponseWriter.Write([]byte("Not Found"))
 		}
 	}
-
 }
 
 // 路径处理注册
-func (re *reactor) register(path string, function reflect.Value, method string) {
+func (*router) register(path string, function reflect.Value, method string) {
 	key := method + ":" + path
-	re.addHandler(key, function)
+	defaultRouter.addHandler(key, function)
 }
 
 type node struct {
@@ -154,15 +177,15 @@ type ptree struct {
 }
 
 // 保存路由配置
-func (re *reactor) addHandler(path string, function reflect.Value) {
+func (*router) addHandler(path string, function reflect.Value) {
 	splits := strings.Split(path, "/")
-	cnode := re.pathTree.root
+	cnode := defaultRouter.pathTree.root
 	for i, val := range splits {
 		if strings.TrimSpace(val) == "" {
 			continue
 		}
 		if i < len(splits)-1 {
-			if n, err := re.inSet(cnode.sub, val); err == nil {
+			if n, err := defaultRouter.inSet(cnode.sub, val); err == nil {
 				cnode = n
 			} else {
 				n := new(node)
@@ -173,7 +196,7 @@ func (re *reactor) addHandler(path string, function reflect.Value) {
 			}
 			continue
 		} else {
-			if n, err := re.inSet(cnode.sub, val); err == nil {
+			if n, err := defaultRouter.inSet(cnode.sub, val); err == nil {
 				n.val = function
 			} else {
 				n := new(node)
@@ -187,7 +210,7 @@ func (re *reactor) addHandler(path string, function reflect.Value) {
 }
 
 // 是否已经设定路由
-func (re *reactor) inSet(sub []*node, name string) (*node, error) {
+func (re *router) inSet(sub []*node, name string) (*node, error) {
 	for _, n := range sub {
 		if n.name == name {
 			return n, nil
@@ -200,7 +223,7 @@ func (re *reactor) inSet(sub []*node, name string) (*node, error) {
 func (re *reactor) getMatchHandler(path string) (reflect.Value, error) {
 	rErr := errors.New("not exist")
 	splits := strings.Split(path, "/")
-	curNode := re.pathTree.root
+	curNode := defaultRouter.pathTree.root
 	for i, val := range splits {
 		if strings.TrimSpace(val) == "" {
 			continue
@@ -283,14 +306,14 @@ func (re *reactor) exists(sub []*node, name string) (*node, error) {
 
 // 是否是静态文件
 func (re *reactor) isStatic(uri string) (string, error) {
-	val, err := re.staticCache.Get(uri)
+	val, err := defaultRouter.staticCache.Get(uri)
 	if err == nil {
 		return val.(string), nil
 	}
-	for key, val := range re.statics {
+	for key, val := range defaultRouter.statics {
 		if strings.Index(uri, key) == 0 {
 			rVal := val + uri[len(key):]
-			go re.staticCache.Set(uri, rVal)
+			go defaultRouter.staticCache.Set(uri, rVal)
 			log.Debug("静态文件：" + uri)
 			return rVal, nil
 		}
@@ -316,10 +339,10 @@ func (re *reactor) handleStatic(filePath string, w http.ResponseWriter) error {
 
 // 是否是下载文件
 func (re *reactor) isDownload(uri string) (string, error) {
-	if val, err := re.downloadCache.Get(uri); err == nil {
+	if val, err := defaultRouter.downloadCache.Get(uri); err == nil {
 		return val.(string), nil
 	}
-	for key, val := range re.downloads {
+	for key, val := range defaultRouter.downloads {
 		if key == uri {
 			var pp string
 			if Server.downloadDir == "." || Server.downloadDir == "./" {
@@ -328,7 +351,7 @@ func (re *reactor) isDownload(uri string) (string, error) {
 				pp = Server.downloadDir
 			}
 			rVal := pp + val
-			go re.downloadCache.Set(uri, rVal)
+			go defaultRouter.downloadCache.Set(uri, rVal)
 			log.Debug("下载文件：" + uri)
 			return rVal, nil
 		}

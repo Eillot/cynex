@@ -1,6 +1,7 @@
 package log
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -32,34 +33,34 @@ var errorF = log.New(logTargetFile(), "ERROR   ", flag)
 
 // Debug 输出调试级日志
 func Debug(v ...interface{}) {
-	debug.Println(output(v).([]interface{})...)
+	debug.Println(output(v))
 	if strings.ToLower(strings.TrimSpace(Threshold)) == "debug" {
-		debugF.Println(output(v).([]interface{})...)
+		debugF.Println(output(v))
 	}
 }
 
 // Info 输出信息级日志
 func Info(v ...interface{}) {
-	info.Println(output(v).([]interface{})...)
+	info.Println(output(v))
 	threshold := strings.ToLower(strings.TrimSpace(Threshold))
 	if threshold == "debug" || threshold == "info" {
-		infoF.Println(output(v).([]interface{})...)
+		infoF.Println(output(v))
 	}
 }
 
 // Warning 输出警告级日志
 func Warning(v ...interface{}) {
-	waring.Println(output(v).([]interface{})...)
+	waring.Println(output(v))
 	threshold := strings.ToLower(strings.TrimSpace(Threshold))
 	if threshold == "debug" || threshold == "info" || threshold == "warning" {
-		warningF.Println(output(v).([]interface{})...)
+		warningF.Println(output(v))
 	}
 }
 
 // Error 输出错误级日志
 func Error(v ...interface{}) {
-	error.Println(output(v).([]interface{})...)
-	errorF.Println(output(v).([]interface{})...)
+	error.Println(output(v))
+	errorF.Println(output(v))
 }
 
 func logTargetFile() io.Writer {
@@ -77,7 +78,7 @@ func logTargetFile() io.Writer {
 	return logFile
 }
 
-func output(v ...interface{}) interface{} {
+func output(v []interface{}) string {
 	fn := ""
 	wd, _ := os.Getwd()
 	for i := 0; i < 7; i++ {
@@ -86,10 +87,5 @@ func output(v ...interface{}) interface{} {
 			fn = p[len(wd):] + ":" + strconv.Itoa(l)
 		}
 	}
-	v2 := make([]interface{}, len(v)-1)
-	v2 = append(v2, fn)
-	for _, vv := range v {
-		v2 = append(v2, vv)
-	}
-	return v2
+	return fmt.Sprintf(fn+" %s", v...)
 }

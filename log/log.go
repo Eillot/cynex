@@ -88,13 +88,13 @@ func output(v []interface{}) string {
 	wd, _ := os.Getwd()
 	_, p, l, _ := runtime.Caller(skip)
 	if strings.Contains(p, wd) {
-		fn = p[len(wd):] + ":" + strconv.Itoa(l)
+		fn = " " + p[len(wd):] + ":" + strconv.Itoa(l)
 		return fmt.Sprintf(fn+" %s", v...)
 	}
 	for i := 0; i < 7; i++ {
 		_, p, l, _ = runtime.Caller(i)
 		if strings.Contains(p, wd) {
-			fn = p[len(wd):] + ":" + strconv.Itoa(l)
+			fn = " " + p[len(wd):] + ":" + strconv.Itoa(l)
 			skip = i
 		}
 	}

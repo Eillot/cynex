@@ -74,9 +74,9 @@ func init() {
 func BindGet(url string, comp interface{}, function string) {
 	url = stripLastSlash(url)
 	v := reflect.ValueOf(comp)
-	hf := v.MethodByName(function)
-	defaultRouter.register(url, hf, "GET")
-	defaultRouter.register(url, hf, "OPTIONS")
+	handleFunc := v.MethodByName(function)
+	defaultRouter.register(url, handleFunc, "GET")
+	defaultRouter.register(url, handleFunc, "OPTIONS")
 	log.Info("已绑定GET方法路径：" + url)
 }
 
@@ -85,9 +85,9 @@ func BindGet(url string, comp interface{}, function string) {
 func BindPost(url string, comp interface{}, function string) {
 	url = stripLastSlash(url)
 	v := reflect.ValueOf(comp)
-	hf := v.MethodByName(function)
-	defaultRouter.register(url, hf, "POST")
-	defaultRouter.register(url, hf, "OPTIONS")
+	handleFunc := v.MethodByName(function)
+	defaultRouter.register(url, handleFunc, "POST")
+	defaultRouter.register(url, handleFunc, "OPTIONS")
 	log.Info("已绑定POST方法路径：" + url)
 }
 
@@ -188,30 +188,30 @@ type ptree struct {
 // 保存路由配置
 func (*router) addHandler(path string, function reflect.Value) {
 	splits := strings.Split(path, "/")
-	cnode := defaultRouter.pathTree.root
+	cNode := defaultRouter.pathTree.root
 	for i, val := range splits {
 		if strings.TrimSpace(val) == "" {
 			continue
 		}
 		if i < len(splits)-1 {
-			if n, err := defaultRouter.inSet(cnode.sub, val); err == nil {
-				cnode = n
+			if n, err := defaultRouter.inSet(cNode.sub, val); err == nil {
+				cNode = n
 			} else {
 				n := new(node)
 				n.val = reflect.Value{}
 				n.name = val
-				cnode.sub = append(cnode.sub, n)
-				cnode = n
+				cNode.sub = append(cNode.sub, n)
+				cNode = n
 			}
 			continue
 		} else {
-			if n, err := defaultRouter.inSet(cnode.sub, val); err == nil {
+			if n, err := defaultRouter.inSet(cNode.sub, val); err == nil {
 				n.val = function
 			} else {
 				n := new(node)
 				n.val = function
 				n.name = val
-				cnode.sub = append(cnode.sub, n)
+				cNode.sub = append(cNode.sub, n)
 			}
 
 		}
@@ -232,19 +232,19 @@ func (re *router) inSet(sub []*node, name string) (*node, error) {
 func (re *reactor) getMatchHandler(path string) (reflect.Value, error) {
 	rErr := errors.New("not exist")
 	splits := strings.Split(path, "/")
-	curNode := defaultRouter.pathTree.root
+	cNode := defaultRouter.pathTree.root
 	for i, val := range splits {
 		if strings.TrimSpace(val) == "" {
 			continue
 		}
 		if i < len(splits)-1 {
-			if n, err := re.exists(curNode.sub, val); err == nil {
-				curNode = n
+			if n, err := re.exists(cNode.sub, val); err == nil {
+				cNode = n
 				continue
 			}
 			return reflect.Value{}, rErr
 		} else {
-			if n, err := re.exists(curNode.sub, val); err == nil {
+			if n, err := re.exists(cNode.sub, val); err == nil {
 				return n.val, nil
 			}
 			return reflect.Value{}, rErr

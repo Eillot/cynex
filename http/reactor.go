@@ -93,6 +93,9 @@ func (re *reactor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	re.ResponseWriter = w
 	re.Request.ParseForm()
 	var uri = r.RequestURI
+	if qi := strings.Index(uri, "?"); qi > 0 {
+		uri = uri[:qi]
+	}
 	uri = stripLastSlash(uri)
 	key := strings.ToUpper(r.Method) + ":" + uri
 	log.Debug("接收并处理请求===> " + key)

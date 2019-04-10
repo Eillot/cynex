@@ -1,6 +1,6 @@
 // reactor 提供指定路径的处理器绑定
 // 支持浏览器Get与Post方法
-package http
+package react
 
 import (
 	"cynex/cache"
@@ -19,8 +19,8 @@ var defaultRouter *router
 var defaultHandler *handler
 
 type reactor struct {
-	ResponseWriter http.ResponseWriter // http.ResponseWriter
-	Request        *http.Request       // *http.Request
+	ResponseWriter http.ResponseWriter // react.ResponseWriter
+	Request        *http.Request       // *react.Request
 
 	from *sync.Pool
 }
@@ -29,7 +29,7 @@ type router struct {
 	muStatic   *sync.RWMutex
 	muDownload *sync.RWMutex
 
-	pathTree  *ptree       // 路径树
+	pathTree  *pTree       // 路径树
 	pathCache *cache.Cache // 路由动态缓存
 
 	statics       map[string]string // 静态文件
@@ -43,11 +43,11 @@ type handler struct {
 }
 
 func init() {
-	pathTree := &ptree{
-		root: &node{
+	pathTree := &pTree{
+		root: &pNode{
 			name: "ROOT",
-			sub:  *new([]*node),
-			val:  reflect.Value{},
+			sub:  *new([]*pNode),
+			val:  nil,
 		},
 	}
 	defaultRouter = &router{
@@ -73,10 +73,9 @@ func init() {
 // 参数 url:将要注册处理的请求路径;comp:使用此组件中的方法处理请求;function:使用（指定组件中的）此方法处理请求;
 func BindGet(url string, comp interface{}, function string) {
 	url = stripLastSlash(url)
-	v := reflect.ValueOf(comp)
-	handleFunc := v.MethodByName(function)
-	defaultRouter.register(url, handleFunc, "GET")
-	defaultRouter.register(url, handleFunc, "OPTIONS")
+	handle := buildHandle(comp, function)
+	defaultRouter.register(url, handle, "GET")
+	defaultRouter.register(url, handle, "OPTIONS")
 	log.Info("已绑定GET方法路径：" + url)
 }
 
@@ -84,11 +83,19 @@ func BindGet(url string, comp interface{}, function string) {
 // 参数 url:将要注册处理的请求路径;comp:使用此组件中的方法处理请求;function:使用（指定组件中的）此方法处理请求;
 func BindPost(url string, comp interface{}, function string) {
 	url = stripLastSlash(url)
+	handle := buildHandle(comp, function)
+	defaultRouter.register(url, handle, "POST")
+	defaultRouter.register(url, handle, "OPTIONS")
+	log.Info("已绑定POST方法路径：" + url)
+}
+
+func buildHandle(comp interface{}, function string) *compTypeAndFunc {
 	v := reflect.ValueOf(comp)
 	handleFunc := v.MethodByName(function)
-	defaultRouter.register(url, handleFunc, "POST")
-	defaultRouter.register(url, handleFunc, "OPTIONS")
-	log.Info("已绑定POST方法路径：" + url)
+	return &compTypeAndFunc{
+		compTyp:    v.Elem(),
+		handleFunc: handleFunc,
+	}
 }
 
 // BindStatic 提供静态文件绑定
@@ -132,19 +139,19 @@ func acceptAndProcess(re *reactor) {
 	uri = stripLastSlash(uri)
 	key := strings.ToUpper(re.Request.Method) + ":" + uri
 	log.Debug("接收并处理请求===> " + key)
-	var function reflect.Value
+	var tf *compTypeAndFunc
 	if val, err := defaultRouter.pathCache.Get(key); err == nil {
-		function = val.(reflect.Value)
-		function.Call(nil)
+		tf = val.(*compTypeAndFunc)
+		tf.Call(re.ResponseWriter, re.Request)
 	} else {
-		if function, err = re.getMatchHandler(key); err == nil {
-			function.Call(nil)
+		if tf, err = re.getMatchHandler(key); err == nil {
+			tf.Call(re.ResponseWriter, re.Request)
 			iLeft := strings.Index(key, "{")
 			iRight := strings.Index(key, "}")
 			if iLeft < 0 && iRight < 0 {
 				// 不包含变量路径时，存储缓存
 				// 包含变量路径时，需将路径参数值保存至Request，故不可使用缓存
-				go defaultRouter.pathCache.Set(key, function)
+				go defaultRouter.pathCache.Set(key, tf)
 			}
 		} else {
 			// 静态文件处理
@@ -170,23 +177,23 @@ func acceptAndProcess(re *reactor) {
 }
 
 // 路径处理注册
-func (*router) register(path string, function reflect.Value, method string) {
+func (*router) register(path string, comp *compTypeAndFunc, method string) {
 	key := method + ":" + path
-	defaultRouter.addHandler(key, function)
+	defaultRouter.addHandler(key, comp)
 }
 
-type node struct {
+type pNode struct {
 	name string
-	val  reflect.Value
-	sub  []*node
+	val  *compTypeAndFunc
+	sub  []*pNode
 }
 
-type ptree struct {
-	root *node
+type pTree struct {
+	root *pNode
 }
 
 // 保存路由配置
-func (*router) addHandler(path string, function reflect.Value) {
+func (*router) addHandler(path string, comp *compTypeAndFunc) {
 	splits := strings.Split(path, "/")
 	cNode := defaultRouter.pathTree.root
 	for i, val := range splits {
@@ -197,8 +204,8 @@ func (*router) addHandler(path string, function reflect.Value) {
 			if n, err := defaultRouter.inSet(cNode.sub, val); err == nil {
 				cNode = n
 			} else {
-				n := new(node)
-				n.val = reflect.Value{}
+				n := new(pNode)
+				n.val = nil
 				n.name = val
 				cNode.sub = append(cNode.sub, n)
 				cNode = n
@@ -206,10 +213,10 @@ func (*router) addHandler(path string, function reflect.Value) {
 			continue
 		} else {
 			if n, err := defaultRouter.inSet(cNode.sub, val); err == nil {
-				n.val = function
+				n.val = comp
 			} else {
-				n := new(node)
-				n.val = function
+				n := new(pNode)
+				n.val = comp
 				n.name = val
 				cNode.sub = append(cNode.sub, n)
 			}
@@ -218,8 +225,21 @@ func (*router) addHandler(path string, function reflect.Value) {
 	}
 }
 
+type compTypeAndFunc struct {
+	compTyp    reflect.Value
+	handleFunc reflect.Value
+}
+
+func (tf *compTypeAndFunc) Call(w http.ResponseWriter, r *http.Request) {
+	in := []reflect.Value{
+		reflect.ValueOf(w),
+		reflect.ValueOf(r),
+	}
+	tf.handleFunc.Call(in)
+}
+
 // 是否已经设定路由
-func (re *router) inSet(sub []*node, name string) (*node, error) {
+func (re *router) inSet(sub []*pNode, name string) (*pNode, error) {
 	for _, n := range sub {
 		if n.name == name {
 			return n, nil
@@ -229,7 +249,7 @@ func (re *router) inSet(sub []*node, name string) (*node, error) {
 }
 
 // 获取匹配当前请求路径的处理方法
-func (re *reactor) getMatchHandler(path string) (reflect.Value, error) {
+func (re *reactor) getMatchHandler(path string) (*compTypeAndFunc, error) {
 	rErr := errors.New("not exist")
 	splits := strings.Split(path, "/")
 	cNode := defaultRouter.pathTree.root
@@ -242,20 +262,20 @@ func (re *reactor) getMatchHandler(path string) (reflect.Value, error) {
 				cNode = n
 				continue
 			}
-			return reflect.Value{}, rErr
+			return nil, rErr
 		} else {
 			if n, err := re.exists(cNode.sub, val); err == nil {
 				return n.val, nil
 			}
-			return reflect.Value{}, rErr
+			return nil, rErr
 		}
 	}
-	return reflect.Value{}, rErr
+	return nil, rErr
 }
 
 // 是否存在已经保存的路由设置
 // 支持全路径匹配、正则匹配、常用匹配、变量路径
-func (re *reactor) exists(sub []*node, name string) (*node, error) {
+func (re *reactor) exists(sub []*pNode, name string) (*pNode, error) {
 	rErr := errors.New("not exist")
 	for _, n := range sub {
 		if strings.Index(n.name, "(") == 0 && strings.Index(n.name, ")") == len(n.name)-1 {

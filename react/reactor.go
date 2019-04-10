@@ -95,6 +95,7 @@ func buildHandle(comp interface{}, function string) *compTypeAndFunc {
 	return &compTypeAndFunc{
 		compTyp:    v.Elem(),
 		handleFunc: handleFunc,
+		in:         make([]reflect.Value, 2),
 	}
 }
 
@@ -126,7 +127,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	re.ResponseWriter = w
 	re.Request = r
 	re.from = h.pool
-	go acceptAndProcess(re)
+	acceptAndProcess(re)
 }
 
 func acceptAndProcess(re *reactor) {
@@ -228,14 +229,14 @@ func (*router) addHandler(path string, comp *compTypeAndFunc) {
 type compTypeAndFunc struct {
 	compTyp    reflect.Value
 	handleFunc reflect.Value
+
+	in []reflect.Value
 }
 
 func (tf *compTypeAndFunc) Call(w http.ResponseWriter, r *http.Request) {
-	in := []reflect.Value{
-		reflect.ValueOf(w),
-		reflect.ValueOf(r),
-	}
-	tf.handleFunc.Call(in)
+	tf.in[0] = reflect.ValueOf(w)
+	tf.in[1] = reflect.ValueOf(r)
+	tf.handleFunc.Call(tf.in)
 }
 
 // 是否已经设定路由

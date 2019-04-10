@@ -54,6 +54,7 @@ func BindGet(url string, comp interface{}, function string) {
 	v := reflect.ValueOf(comp)
 	hf := v.MethodByName(function)
 	handler.register(url, hf, "GET")
+	handler.register(url, hf, "OPTIONS")
 	log.Info("已绑定GET方法路径：" + url)
 }
 
@@ -64,6 +65,7 @@ func BindPost(url string, comp interface{}, function string) {
 	v := reflect.ValueOf(comp)
 	hf := v.MethodByName(function)
 	handler.register(url, hf, "POST")
+	handler.register(url, hf, "OPTIONS")
 	log.Info("已绑定POST方法路径：" + url)
 }
 

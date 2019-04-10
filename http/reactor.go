@@ -26,7 +26,8 @@ type reactor struct {
 }
 
 type router struct {
-	mu sync.RWMutex
+	muStatic   *sync.RWMutex
+	muDownload *sync.RWMutex
 
 	pathTree  *ptree       // 路径树
 	pathCache *cache.Cache // 路由动态缓存
@@ -56,7 +57,8 @@ func init() {
 		staticCache:   cache.NewCache(7 * 7),
 		downloads:     make(map[string]string),
 		downloadCache: cache.NewCache(7 * 7),
-		mu:            sync.RWMutex{},
+		muStatic:      &sync.RWMutex{},
+		muDownload:    &sync.RWMutex{},
 	}
 	defaultHandler = &handler{
 		pool: &sync.Pool{
@@ -95,9 +97,9 @@ func BindStatic(urlPrefix string, localPrefix string) {
 	urlPrefix = stripLastSlash(urlPrefix)
 	localPrefix = stripLastSlash(localPrefix)
 	localPrefix = completeFirstSlash(localPrefix)
-	defaultRouter.mu.Lock()
+	defaultRouter.muStatic.Lock()
 	defaultRouter.statics[urlPrefix] = localPrefix
-	defaultRouter.mu.Unlock()
+	defaultRouter.muStatic.Unlock()
 	log.Info("已绑定静态文件目录前置路径：" + urlPrefix)
 }
 
@@ -106,9 +108,9 @@ func BindStatic(urlPrefix string, localPrefix string) {
 func BindDownload(url string, path string) {
 	url = stripLastSlash(url)
 	path = completeFirstSlash(path)
-	defaultRouter.mu.Lock()
+	defaultRouter.muDownload.Lock()
 	defaultRouter.downloads[url] = path
-	defaultRouter.mu.Unlock()
+	defaultRouter.muDownload.Unlock()
 	log.Info("已绑定下载文件请求路径：" + url)
 }
 
@@ -313,9 +315,9 @@ func (re *reactor) exists(sub []*node, name string) (*node, error) {
 
 // 是否是静态文件
 func (re *reactor) isStatic(uri string) (string, error) {
-	defaultRouter.mu.RLock()
+	defaultRouter.muStatic.RLock()
 	val, err := defaultRouter.staticCache.Get(uri)
-	defaultRouter.mu.RUnlock()
+	defaultRouter.muStatic.RUnlock()
 	if err == nil {
 		return val.(string), nil
 	}
@@ -323,9 +325,9 @@ func (re *reactor) isStatic(uri string) (string, error) {
 		if strings.Index(uri, key) == 0 {
 			rVal := val + uri[len(key):]
 			go func() {
-				defaultRouter.mu.Lock()
+				defaultRouter.muStatic.Lock()
 				defaultRouter.staticCache.Set(uri, rVal)
-				defaultRouter.mu.Unlock()
+				defaultRouter.muStatic.Unlock()
 			}()
 			log.Debug("静态文件：" + uri)
 			return rVal, nil
@@ -352,9 +354,9 @@ func (re *reactor) handleStatic(filePath string, w http.ResponseWriter) error {
 
 // 是否是下载文件
 func (re *reactor) isDownload(uri string) (string, error) {
-	defaultRouter.mu.RLock()
+	defaultRouter.muDownload.RLock()
 	val, err := defaultRouter.downloadCache.Get(uri)
-	defaultRouter.mu.RUnlock()
+	defaultRouter.muDownload.RUnlock()
 	if err == nil {
 		return val.(string), nil
 	}
@@ -368,9 +370,9 @@ func (re *reactor) isDownload(uri string) (string, error) {
 			}
 			rVal := pp + val
 			go func() {
-				defaultRouter.mu.Lock()
+				defaultRouter.muDownload.Lock()
 				defaultRouter.downloadCache.Set(uri, rVal)
-				defaultRouter.mu.Unlock()
+				defaultRouter.muDownload.Unlock()
 			}()
 			log.Debug("下载文件：" + uri)
 			return rVal, nil

@@ -17,7 +17,7 @@ func NewCache(cap ...int) *Cache {
 			Size:     0,
 			queue:    &linkedList{head: nil, tail: nil},
 			hashData: make(map[string]*node, capability),
-			mu:       sync.RWMutex{},
+			mu:       &sync.RWMutex{},
 		}
 	} else {
 		return &Cache{
@@ -25,7 +25,7 @@ func NewCache(cap ...int) *Cache {
 			Size:     0,
 			queue:    &linkedList{head: nil, tail: nil},
 			hashData: make(map[string]*node, cap[0]),
-			mu:       sync.RWMutex{},
+			mu:       &sync.RWMutex{},
 		}
 	}
 }
@@ -36,7 +36,7 @@ type Cache struct {
 
 	queue    *linkedList
 	hashData map[string]*node
-	mu       sync.RWMutex
+	mu       *sync.RWMutex
 }
 
 type node struct {

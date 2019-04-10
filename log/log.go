@@ -19,7 +19,6 @@ var Dir = ""
 
 // 日志输出配置初始化
 const flag = log.Ldate | log.Ltime
-const skip = 2
 
 var debug = log.New(os.Stdout, "DEBUG   ", flag)
 var info = log.New(os.Stdout, "INFO    ", flag)
@@ -33,66 +32,34 @@ var errorF = log.New(logTargetFile(), "ERROR   ", flag)
 
 // Debug 输出调试级日志
 func Debug(v ...interface{}) {
-	_, p, l, _ := runtime.Caller(skip)
-	wd, _ := os.Getwd()
-	fileName := p[len(wd):] + ":" + strconv.Itoa(l)
-	v2 := make([]interface{}, len(v)-1)
-	v2 = append(v2, fileName)
-	for _, vv := range v {
-		v2 = append(v2, vv)
-	}
-	debug.Println(v2...)
+	debug.Println(output(v).([]interface{})...)
 	if strings.ToLower(strings.TrimSpace(Threshold)) == "debug" {
-		debugF.Println(v2...)
+		debugF.Println(output(v).([]interface{})...)
 	}
 }
 
 // Info 输出信息级日志
 func Info(v ...interface{}) {
-	_, p, l, _ := runtime.Caller(skip)
-	wd, _ := os.Getwd()
-	fileName := p[len(wd):] + ":" + strconv.Itoa(l)
-	v2 := make([]interface{}, len(v)-1)
-	v2 = append(v2, fileName)
-	for _, vv := range v {
-		v2 = append(v2, vv)
-	}
-	info.Println(v2...)
+	info.Println(output(v).([]interface{})...)
 	threshold := strings.ToLower(strings.TrimSpace(Threshold))
 	if threshold == "debug" || threshold == "info" {
-		infoF.Println(v2...)
+		infoF.Println(output(v).([]interface{})...)
 	}
 }
 
 // Warning 输出警告级日志
 func Warning(v ...interface{}) {
-	_, p, l, _ := runtime.Caller(skip)
-	wd, _ := os.Getwd()
-	fileName := p[len(wd):] + ":" + strconv.Itoa(l)
-	v2 := make([]interface{}, len(v)-1)
-	v2 = append(v2, fileName)
-	for _, vv := range v {
-		v2 = append(v2, vv)
-	}
-	waring.Println(v2...)
+	waring.Println(output(v).([]interface{})...)
 	threshold := strings.ToLower(strings.TrimSpace(Threshold))
 	if threshold == "debug" || threshold == "info" || threshold == "warning" {
-		warningF.Println(v2...)
+		warningF.Println(output(v).([]interface{})...)
 	}
 }
 
 // Error 输出错误级日志
 func Error(v ...interface{}) {
-	_, p, l, _ := runtime.Caller(skip)
-	wd, _ := os.Getwd()
-	fileName := p[len(wd):] + ":" + strconv.Itoa(l)
-	v2 := make([]interface{}, len(v)-1)
-	v2 = append(v2, fileName)
-	for _, vv := range v {
-		v2 = append(v2, vv)
-	}
-	error.Println(v2...)
-	errorF.Println(v2...)
+	error.Println(output(v).([]interface{})...)
+	errorF.Println(output(v).([]interface{})...)
 }
 
 func logTargetFile() io.Writer {
@@ -108,4 +75,21 @@ func logTargetFile() io.Writer {
 		panic(err)
 	}
 	return logFile
+}
+
+func output(v ...interface{}) interface{} {
+	fn := ""
+	wd, _ := os.Getwd()
+	for i := 0; i < 7; i++ {
+		_, p, l, _ := runtime.Caller(i)
+		if strings.Contains(p, wd) {
+			fn = p[len(wd):] + ":" + strconv.Itoa(l)
+		}
+	}
+	v2 := make([]interface{}, len(v)-1)
+	v2 = append(v2, fn)
+	for _, vv := range v {
+		v2 = append(v2, vv)
+	}
+	return v2
 }

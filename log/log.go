@@ -65,7 +65,7 @@ func Error(v ...interface{}) {
 
 func logTargetFile() io.Writer {
 	date := time.Now().Format("2006-01-02")
-	var logFileName string
+	logFileName := ""
 	if strings.TrimSpace(Dir) == "" {
 		logFileName = "./" + date + ".log"
 	} else {

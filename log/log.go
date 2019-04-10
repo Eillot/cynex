@@ -21,6 +21,8 @@ var Dir = ""
 // 日志输出配置初始化
 const flag = log.Ldate | log.Ltime
 
+var skip = 2
+
 var debug = log.New(os.Stdout, "DEBUG   ", flag)
 var info = log.New(os.Stdout, "INFO    ", flag)
 var waring = log.New(os.Stdout, "WARNING ", flag)
@@ -81,10 +83,17 @@ func logTargetFile() io.Writer {
 func output(v []interface{}) string {
 	fn := ""
 	wd, _ := os.Getwd()
-	for i := 0; i < 7; i++ {
-		_, p, l, _ := runtime.Caller(i)
-		if strings.Contains(p, wd) {
-			fn = p[len(wd):] + ":" + strconv.Itoa(l)
+	_, p, l, _ := runtime.Caller(skip)
+	if strings.Contains(p, wd) {
+		fn = p[len(wd):] + ":" + strconv.Itoa(l)
+		return fmt.Sprintf(fn+" %s", v...)
+	} else {
+		for i := 0; i < 7; i++ {
+			_, p, l, _ = runtime.Caller(i)
+			if strings.Contains(p, wd) {
+				fn = p[len(wd):] + ":" + strconv.Itoa(l)
+				skip = i
+			}
 		}
 	}
 	return fmt.Sprintf(fn+" %s", v...)

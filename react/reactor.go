@@ -94,7 +94,6 @@ func buildHandle(comp interface{}, function string) *compTypeAndFunc {
 	handleFunc := v.MethodByName(function)
 	return &compTypeAndFunc{
 		handleFunc: handleFunc,
-		in:         make([]reflect.Value, 2),
 	}
 }
 
@@ -227,14 +226,13 @@ func (*router) addHandler(path string, comp *compTypeAndFunc) {
 
 type compTypeAndFunc struct {
 	handleFunc reflect.Value
-
-	in []reflect.Value
 }
 
 func (tf *compTypeAndFunc) Call(w http.ResponseWriter, r *http.Request) {
-	tf.in[0] = reflect.ValueOf(w)
-	tf.in[1] = reflect.ValueOf(r)
-	tf.handleFunc.Call(tf.in)
+	in := make([]reflect.Value, 2)
+	in[0] = reflect.ValueOf(w)
+	in[1] = reflect.ValueOf(r)
+	tf.handleFunc.Call(in)
 }
 
 // 是否已经设定路由

@@ -75,8 +75,8 @@ func init() {
 func BindGet(url string, comp interface{}, function string) {
 	url = stripLastSlash(url)
 	handle := buildHandle(comp, function)
-	defaultRouter.register(url, handle, "GET")
-	defaultRouter.register(url, handle, "OPTIONS")
+	defaultRouter.pathRegister(url, handle, "GET")
+	defaultRouter.pathRegister(url, handle, "OPTIONS")
 	log.Info("已绑定GET方法路径：" + url)
 }
 
@@ -85,15 +85,15 @@ func BindGet(url string, comp interface{}, function string) {
 func BindPost(url string, comp interface{}, function string) {
 	url = stripLastSlash(url)
 	handle := buildHandle(comp, function)
-	defaultRouter.register(url, handle, "POST")
-	defaultRouter.register(url, handle, "OPTIONS")
+	defaultRouter.pathRegister(url, handle, "POST")
+	defaultRouter.pathRegister(url, handle, "OPTIONS")
 	log.Info("已绑定POST方法路径：" + url)
 }
 
-func buildHandle(comp interface{}, function string) *compMethodRefer {
+func buildHandle(comp interface{}, function string) *handleMethodRefer {
 	v := reflect.ValueOf(comp)
 	handleFunc := v.MethodByName(function)
-	return &compMethodRefer{
+	return &handleMethodRefer{
 		handleFunc: handleFunc,
 	}
 }
@@ -142,7 +142,7 @@ func (h *handler) acceptAndProcess(re *reactor) {
 	log.Debug("接收并处理请求===> " + key)
 
 	if val, err := defaultRouter.pathCache.Get(key); err == nil {
-		c := val.(*cachedCompMethodRefer)
+		c := val.(*cachedHandleMethodRefer)
 		for key, val := range c.pathVars {
 			if strings.TrimSpace(key) != "" {
 				re.request.Form[key] = val
@@ -150,9 +150,9 @@ func (h *handler) acceptAndProcess(re *reactor) {
 		}
 		c.methodRefer.Call(re.responseWriter, re.request)
 	} else {
-		if exe, err := re.getMatchHandler(key); err == nil {
+		if exe, err := re.matchHandler(key); err == nil {
 			exe.Call(re.responseWriter, re.request)
-			cs := &cachedCompMethodRefer{
+			cs := &cachedHandleMethodRefer{
 				methodRefer: exe,
 				pathVars:    re.pathVariable,
 			}
@@ -181,14 +181,14 @@ func (h *handler) acceptAndProcess(re *reactor) {
 }
 
 // 路径处理注册
-func (*router) register(path string, comp *compMethodRefer, method string) {
+func (*router) pathRegister(path string, comp *handleMethodRefer, method string) {
 	key := method + ":" + path
-	defaultRouter.addHandler(key, comp)
+	defaultRouter.addPathHandler(key, comp)
 }
 
 type pNode struct {
 	name string
-	val  *compMethodRefer
+	val  *handleMethodRefer
 	sub  []*pNode
 }
 
@@ -197,7 +197,7 @@ type pTree struct {
 }
 
 // 保存路由配置
-func (*router) addHandler(path string, comp *compMethodRefer) {
+func (*router) addPathHandler(path string, comp *handleMethodRefer) {
 	splits := strings.Split(path, "/")
 	cNode := defaultRouter.pathTree.root
 	for i, val := range splits {
@@ -205,7 +205,7 @@ func (*router) addHandler(path string, comp *compMethodRefer) {
 			continue
 		}
 		if i < len(splits)-1 {
-			if n, err := defaultRouter.inSet(cNode.sub, val); err == nil {
+			if n, err := defaultRouter.inRouter(cNode.sub, val); err == nil {
 				cNode = n
 			} else {
 				n := new(pNode)
@@ -216,7 +216,7 @@ func (*router) addHandler(path string, comp *compMethodRefer) {
 			}
 			continue
 		} else {
-			if n, err := defaultRouter.inSet(cNode.sub, val); err == nil {
+			if n, err := defaultRouter.inRouter(cNode.sub, val); err == nil {
 				n.val = comp
 			} else {
 				n := new(pNode)
@@ -229,16 +229,16 @@ func (*router) addHandler(path string, comp *compMethodRefer) {
 	}
 }
 
-type compMethodRefer struct {
+type handleMethodRefer struct {
 	handleFunc reflect.Value
 }
 
-type cachedCompMethodRefer struct {
-	methodRefer *compMethodRefer
+type cachedHandleMethodRefer struct {
+	methodRefer *handleMethodRefer
 	pathVars    map[string][]string
 }
 
-func (tf *compMethodRefer) Call(w http.ResponseWriter, r *http.Request) {
+func (tf *handleMethodRefer) Call(w http.ResponseWriter, r *http.Request) {
 	in := make([]reflect.Value, 2)
 	in[0] = reflect.ValueOf(w)
 	in[1] = reflect.ValueOf(r)
@@ -246,7 +246,7 @@ func (tf *compMethodRefer) Call(w http.ResponseWriter, r *http.Request) {
 }
 
 // 是否已经设定路由
-func (re *router) inSet(sub []*pNode, name string) (*pNode, error) {
+func (re *router) inRouter(sub []*pNode, name string) (*pNode, error) {
 	for _, n := range sub {
 		if n.name == name {
 			return n, nil
@@ -256,7 +256,7 @@ func (re *router) inSet(sub []*pNode, name string) (*pNode, error) {
 }
 
 // 获取匹配当前请求路径的处理方法
-func (re *reactor) getMatchHandler(path string) (*compMethodRefer, error) {
+func (re *reactor) matchHandler(path string) (*handleMethodRefer, error) {
 	rErr := errors.New("not exist")
 	splits := strings.Split(path, "/")
 	cNode := defaultRouter.pathTree.root
@@ -265,13 +265,13 @@ func (re *reactor) getMatchHandler(path string) (*compMethodRefer, error) {
 			continue
 		}
 		if i < len(splits)-1 {
-			if n, err := re.exists(cNode.sub, val); err == nil {
+			if n, err := re.pathMatch(cNode.sub, val); err == nil {
 				cNode = n
 				continue
 			}
 			return nil, rErr
 		} else {
-			if n, err := re.exists(cNode.sub, val); err == nil {
+			if n, err := re.pathMatch(cNode.sub, val); err == nil {
 				return n.val, nil
 			}
 			return nil, rErr
@@ -282,7 +282,7 @@ func (re *reactor) getMatchHandler(path string) (*compMethodRefer, error) {
 
 // 是否存在已经保存的路由设置
 // 支持全路径匹配、正则匹配、常用匹配、变量路径
-func (re *reactor) exists(sub []*pNode, name string) (*pNode, error) {
+func (re *reactor) pathMatch(sub []*pNode, name string) (*pNode, error) {
 	rErr := errors.New("not exist")
 	for _, n := range sub {
 		if strings.Index(n.name, "(") == 0 && strings.Index(n.name, ")") == len(n.name)-1 {
@@ -322,7 +322,6 @@ func (re *reactor) exists(sub []*pNode, name string) (*pNode, error) {
 				}
 				return nil, rErr
 			}
-
 		}
 		if strings.Index(n.name, "{") == 0 && strings.Index(n.name, "}") == len(n.name)-1 {
 			// 变量路径匹配，含有路径变量，将路径中的值作为匹配变量的值存储Request

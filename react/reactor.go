@@ -7,6 +7,7 @@ import (
 	"cynex/log"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"reflect"
@@ -63,8 +64,8 @@ func init() {
 		downloadCache: cache.NewCache(7 * 7),
 		muStatic:      &sync.RWMutex{},
 		muDownload:    &sync.RWMutex{},
-		beforeCache:   cache.NewCache(),
-		afterCache:    cache.NewCache(),
+		beforeCache:   cache.NewCache(math.MaxInt64),
+		afterCache:    cache.NewCache(math.MaxInt64),
 	}
 	defaultHandler = &handler{
 		reactorPool: &sync.Pool{

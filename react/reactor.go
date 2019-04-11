@@ -246,7 +246,13 @@ func (*router) addPathHandler(path string, comp *handleMethodRefer) {
 }
 
 type handleMethodRefer struct {
-	handleFunc reflect.Value
+	handleFunc reflect.Value // 处理方法
+	hasBefore  bool          // 是否有前置处理
+	beforeStr  string        // 前置类型名与方法名冒号连接字符串
+	beforeFunc reflect.Value // 前置方法
+	hasAfter   bool          // 是否有后置处理
+	afterStr   string        // 后置类型名与方法名冒号连接字符串
+	afterFunc  reflect.Value // 后置方法
 }
 
 type cachedHandleMethodRefer struct {

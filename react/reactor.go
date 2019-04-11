@@ -132,6 +132,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) acceptAndProcess(re *reactor) {
 	defer re.reactorPool.Put(re)
+	re.request.ParseForm()
 	var uri = re.request.RequestURI
 	if qi := strings.Index(uri, "?"); qi > 0 {
 		uri = uri[:qi]
@@ -139,6 +140,7 @@ func (h *handler) acceptAndProcess(re *reactor) {
 	uri = stripLastSlash(uri)
 	key := strings.ToUpper(re.request.Method) + ":" + uri
 	log.Debug("接收并处理请求===> " + key)
+
 	if val, err := defaultRouter.pathCache.Get(key); err == nil {
 		c := val.(*cachedCompMethodRefer)
 		for key, val := range c.pathVars {
@@ -146,11 +148,9 @@ func (h *handler) acceptAndProcess(re *reactor) {
 				re.request.Form[key] = val
 			}
 		}
-		re.request.ParseForm()
 		c.methodRefer.Call(re.responseWriter, re.request)
 	} else {
 		if exe, err := re.getMatchHandler(key); err == nil {
-			re.request.ParseForm()
 			exe.Call(re.responseWriter, re.request)
 			cs := &cachedCompMethodRefer{
 				methodRefer: exe,

@@ -37,6 +37,9 @@ type router struct {
 	staticCache   *cache.Cache      // 静态文件缓存
 	downloads     map[string]string // 下载文件
 	downloadCache *cache.Cache      // 下载文件缓存
+
+	beforeCache *cache.Cache
+	afterCache  *cache.Cache
 }
 
 type handler struct {
@@ -60,6 +63,8 @@ func init() {
 		downloadCache: cache.NewCache(7 * 7),
 		muStatic:      &sync.RWMutex{},
 		muDownload:    &sync.RWMutex{},
+		beforeCache:   cache.NewCache(),
+		afterCache:    cache.NewCache(),
 	}
 	defaultHandler = &handler{
 		reactorPool: &sync.Pool{
@@ -88,6 +93,20 @@ func BindPost(url string, comp interface{}, method string) {
 	defaultRouter.pathRegister(url, handle, "POST")
 	defaultRouter.pathRegister(url, handle, "OPTIONS")
 	log.Info("已绑定POST方法路径：" + url)
+}
+
+// PipelineBefore 用于绑定前置管线
+func PipelineBefore(comp interface{}, method string, beforeComp interface{}, beforeMethod string) {
+	handle := buildHandleFunc(comp, method)
+	beforeHandle := buildHandleFunc(beforeComp, beforeMethod)
+	defaultRouter.beforeCache.Set(handle.handleFuncDes, beforeHandle)
+}
+
+// PipelineAfter 用于绑定后置管线
+func PipelineAfter(comp interface{}, method string, afterComp interface{}, afterMethod string) {
+	handle := buildHandleFunc(comp, method)
+	afterHandle := buildHandleFunc(afterComp, afterMethod)
+	defaultRouter.afterCache.Set(handle.handleFuncDes, afterHandle)
 }
 
 func buildHandleFunc(comp interface{}, method string) *handleMethodRefer {
@@ -249,7 +268,27 @@ func (tf *handleMethodRefer) Call(w http.ResponseWriter, r *http.Request) {
 	in := make([]reflect.Value, 2)
 	in[0] = reflect.ValueOf(w)
 	in[1] = reflect.ValueOf(r)
+	if before, err := defaultRouter.beforeCache.Get(tf.handleFuncDes); err == nil {
+		executeBefore(before.(*handleMethodRefer), in)
+	}
 	tf.handleFunc.Call(in)
+	if after, err := defaultRouter.afterCache.Get(tf.handleFuncDes); err == nil {
+		executeAfter(after.(*handleMethodRefer), in)
+	}
+}
+
+func executeBefore(tf *handleMethodRefer, in []reflect.Value) {
+	if before, err := defaultRouter.beforeCache.Get(tf.handleFuncDes); err == nil {
+		executeBefore(before.(*handleMethodRefer), in)
+	}
+	tf.handleFunc.Call(in)
+}
+
+func executeAfter(tf *handleMethodRefer, in []reflect.Value) {
+	tf.handleFunc.Call(in)
+	if after, err := defaultRouter.afterCache.Get(tf.handleFuncDes); err == nil {
+		executeAfter(after.(*handleMethodRefer), in)
+	}
 }
 
 // 是否已经设定路由

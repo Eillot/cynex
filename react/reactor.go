@@ -90,11 +90,13 @@ func BindPost(url string, comp interface{}, method string) {
 	log.Info("已绑定POST方法路径：" + url)
 }
 
-func buildHandleFunc(comp interface{}, function string) *handleMethodRefer {
+func buildHandleFunc(comp interface{}, method string) *handleMethodRefer {
 	v := reflect.ValueOf(comp)
-	handleFunc := v.MethodByName(function)
+	handleFunc := v.MethodByName(method)
+	handleFuncDes := v.Type().String() + "." + method
 	return &handleMethodRefer{
-		handleFunc: handleFunc,
+		handleFunc:    handleFunc,
+		handleFuncDes: handleFuncDes,
 	}
 }
 
@@ -119,18 +121,6 @@ func BindDownload(url string, path string) {
 	defaultRouter.downloads[url] = path
 	defaultRouter.muDownload.Unlock()
 	log.Info("已绑定下载文件请求路径：" + url)
-}
-
-// SetBefore 用于在设定的路径列表前执行
-// 参数 comp:使用此组件中的方法处理请求;method:使用（指定组件中的）此方法处理请求;urls:将要拦截的路径
-func SetBefore(comp interface{}, method string, urls ...string) {
-	// TODO
-}
-
-// SetBefore 用于在设定的路径列表后执行
-// 参数 comp:使用此组件中的方法处理请求;method:使用（指定组件中的）此方法处理请求;urls:将要拦截的路径
-func SetAfter(comp interface{}, method string, urls ...string) {
-	// TODO
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -246,13 +236,8 @@ func (*router) addPathHandler(path string, comp *handleMethodRefer) {
 }
 
 type handleMethodRefer struct {
-	handleFunc reflect.Value // 处理方法
-	hasBefore  bool          // 是否有前置处理
-	beforeStr  string        // 前置类型名与方法名冒号连接字符串
-	beforeFunc reflect.Value // 前置方法
-	hasAfter   bool          // 是否有后置处理
-	afterStr   string        // 后置类型名与方法名冒号连接字符串
-	afterFunc  reflect.Value // 后置方法
+	handleFunc    reflect.Value // 处理方法
+	handleFuncDes string        // 处理方法描述
 }
 
 type cachedHandleMethodRefer struct {

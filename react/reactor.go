@@ -93,7 +93,6 @@ func buildHandle(comp interface{}, function string) *compTypeAndFunc {
 	v := reflect.ValueOf(comp)
 	handleFunc := v.MethodByName(function)
 	return &compTypeAndFunc{
-		compTyp:    v.Elem(),
 		handleFunc: handleFunc,
 		in:         make([]reflect.Value, 2),
 	}
@@ -227,7 +226,6 @@ func (*router) addHandler(path string, comp *compTypeAndFunc) {
 }
 
 type compTypeAndFunc struct {
-	compTyp    reflect.Value
 	handleFunc reflect.Value
 
 	in []reflect.Value

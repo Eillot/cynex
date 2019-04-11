@@ -71,20 +71,20 @@ func init() {
 }
 
 // BindGet 提供GET方式的HTTP访问
-// 参数 url:将要注册处理的请求路径;comp:使用此组件中的方法处理请求;function:使用（指定组件中的）此方法处理请求;
-func BindGet(url string, comp interface{}, function string) {
+// 参数 url:将要注册处理的请求路径;comp:使用此组件中的方法处理请求;method:使用（指定组件中的）此方法处理请求;
+func BindGet(url string, comp interface{}, method string) {
 	url = stripLastSlash(url)
-	handle := buildHandleFunc(comp, function)
+	handle := buildHandleFunc(comp, method)
 	defaultRouter.pathRegister(url, handle, "GET")
 	defaultRouter.pathRegister(url, handle, "OPTIONS")
 	log.Info("已绑定GET方法路径：" + url)
 }
 
 // BindPost 提供POST方式的HTTP访问
-// 参数 url:将要注册处理的请求路径;comp:使用此组件中的方法处理请求;function:使用（指定组件中的）此方法处理请求;
-func BindPost(url string, comp interface{}, function string) {
+// 参数 url:将要注册处理的请求路径;comp:使用此组件中的方法处理请求;method:使用（指定组件中的）此方法处理请求;
+func BindPost(url string, comp interface{}, method string) {
 	url = stripLastSlash(url)
-	handle := buildHandleFunc(comp, function)
+	handle := buildHandleFunc(comp, method)
 	defaultRouter.pathRegister(url, handle, "POST")
 	defaultRouter.pathRegister(url, handle, "OPTIONS")
 	log.Info("已绑定POST方法路径：" + url)
@@ -119,6 +119,18 @@ func BindDownload(url string, path string) {
 	defaultRouter.downloads[url] = path
 	defaultRouter.muDownload.Unlock()
 	log.Info("已绑定下载文件请求路径：" + url)
+}
+
+// SetBefore 用于在设定的路径列表前执行
+// 参数 comp:使用此组件中的方法处理请求;method:使用（指定组件中的）此方法处理请求;urls:将要拦截的路径
+func SetBefore(comp interface{}, method string, urls ...string) {
+	// TODO
+}
+
+// SetBefore 用于在设定的路径列表后执行
+// 参数 comp:使用此组件中的方法处理请求;method:使用（指定组件中的）此方法处理请求;urls:将要拦截的路径
+func SetAfter(comp interface{}, method string, urls ...string) {
+	// TODO
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -145,7 +145,6 @@ func (h *handler) acceptAndProcess(re *reactor) {
 	uri = stripLastSlash(uri)
 	key := strings.ToUpper(re.request.Method) + ":" + uri
 	log.Debug("接收并处理请求===> " + key)
-
 	if val, err := defaultRouter.pathCache.Get(key); err == nil {
 		c := val.(*cachedHandleMethodRefer)
 		for key, val := range c.pathVars {

@@ -19,10 +19,11 @@ var defaultRouter *router
 var defaultHandler *handler
 
 type reactor struct {
-	ResponseWriter http.ResponseWriter // react.ResponseWriter
-	Request        *http.Request       // *react.Request
+	responseWriter http.ResponseWriter // react.responseWriter
+	request        *http.Request       // *react.request
 
-	from *sync.Pool
+	reactorPool  *sync.Pool
+	pathVariable map[string][]string
 }
 
 type router struct {
@@ -39,7 +40,7 @@ type router struct {
 }
 
 type handler struct {
-	pool *sync.Pool
+	reactorPool *sync.Pool
 }
 
 func init() {
@@ -61,7 +62,7 @@ func init() {
 		muDownload:    &sync.RWMutex{},
 	}
 	defaultHandler = &handler{
-		pool: &sync.Pool{
+		reactorPool: &sync.Pool{
 			New: func() interface{} {
 				return new(reactor)
 			},
@@ -89,10 +90,10 @@ func BindPost(url string, comp interface{}, function string) {
 	log.Info("已绑定POST方法路径：" + url)
 }
 
-func buildHandle(comp interface{}, function string) *compTypeAndFunc {
+func buildHandle(comp interface{}, function string) *compMethodRefer {
 	v := reflect.ValueOf(comp)
 	handleFunc := v.MethodByName(function)
-	return &compTypeAndFunc{
+	return &compMethodRefer{
 		handleFunc: handleFunc,
 	}
 }
@@ -121,69 +122,73 @@ func BindDownload(url string, path string) {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	re := h.pool.Get().(*reactor)
-	re.ResponseWriter = w
-	re.Request = r
-	re.from = h.pool
-	acceptAndProcess(re)
+	re := h.reactorPool.Get().(*reactor)
+	re.responseWriter = w
+	re.request = r
+	re.reactorPool = h.reactorPool
+	re.pathVariable = make(map[string][]string)
+	h.acceptAndProcess(re)
 }
 
-func acceptAndProcess(re *reactor) {
-	defer re.from.Put(re)
-	re.Request.ParseForm()
-	var uri = re.Request.RequestURI
+func (h *handler) acceptAndProcess(re *reactor) {
+	defer re.reactorPool.Put(re)
+	var uri = re.request.RequestURI
 	if qi := strings.Index(uri, "?"); qi > 0 {
 		uri = uri[:qi]
 	}
 	uri = stripLastSlash(uri)
-	key := strings.ToUpper(re.Request.Method) + ":" + uri
+	key := strings.ToUpper(re.request.Method) + ":" + uri
 	log.Debug("接收并处理请求===> " + key)
-	var tf *compTypeAndFunc
 	if val, err := defaultRouter.pathCache.Get(key); err == nil {
-		tf = val.(*compTypeAndFunc)
-		tf.Call(re.ResponseWriter, re.Request)
-	} else {
-		if tf, err = re.getMatchHandler(key); err == nil {
-			tf.Call(re.ResponseWriter, re.Request)
-			iLeft := strings.Index(key, "{")
-			iRight := strings.Index(key, "}")
-			if iLeft < 0 && iRight < 0 {
-				// 不包含变量路径时，存储缓存
-				// 包含变量路径时，需将路径参数值保存至Request，故不可使用缓存
-				go defaultRouter.pathCache.Set(key, tf)
+		c := val.(*cachedCompMethodRefer)
+		for key, val := range c.pathVars {
+			if strings.TrimSpace(key) != "" {
+				re.request.Form[key] = val
 			}
+		}
+		re.request.ParseForm()
+		c.methodRefer.Call(re.responseWriter, re.request)
+	} else {
+		if exe, err := re.getMatchHandler(key); err == nil {
+			re.request.ParseForm()
+			exe.Call(re.responseWriter, re.request)
+			cs := &cachedCompMethodRefer{
+				methodRefer: exe,
+				pathVars:    re.pathVariable,
+			}
+			go defaultRouter.pathCache.Set(key, cs)
 		} else {
 			// 静态文件处理
 			if p, err := re.isStatic(uri); err == nil {
-				if err = re.handleStatic(p, re.ResponseWriter); err != nil {
-					re.ResponseWriter.Write([]byte(err.Error()))
+				if err = re.handleStatic(p, re.responseWriter); err != nil {
+					re.responseWriter.Write([]byte(err.Error()))
 				}
 				return
 			}
 			//./
 			// 下载文件处理
 			if p, err := re.isDownload(uri); err == nil {
-				if err = re.handleDownload(p, re.ResponseWriter); err != nil {
-					re.ResponseWriter.Write([]byte(err.Error()))
+				if err = re.handleDownload(p, re.responseWriter); err != nil {
+					re.responseWriter.Write([]byte(err.Error()))
 				}
 				return
 			}
 			//./
-			re.ResponseWriter.WriteHeader(http.StatusNotFound)
-			re.ResponseWriter.Write([]byte("Not Found"))
+			re.responseWriter.WriteHeader(http.StatusNotFound)
+			re.responseWriter.Write([]byte("Not Found"))
 		}
 	}
 }
 
 // 路径处理注册
-func (*router) register(path string, comp *compTypeAndFunc, method string) {
+func (*router) register(path string, comp *compMethodRefer, method string) {
 	key := method + ":" + path
 	defaultRouter.addHandler(key, comp)
 }
 
 type pNode struct {
 	name string
-	val  *compTypeAndFunc
+	val  *compMethodRefer
 	sub  []*pNode
 }
 
@@ -192,7 +197,7 @@ type pTree struct {
 }
 
 // 保存路由配置
-func (*router) addHandler(path string, comp *compTypeAndFunc) {
+func (*router) addHandler(path string, comp *compMethodRefer) {
 	splits := strings.Split(path, "/")
 	cNode := defaultRouter.pathTree.root
 	for i, val := range splits {
@@ -224,11 +229,16 @@ func (*router) addHandler(path string, comp *compTypeAndFunc) {
 	}
 }
 
-type compTypeAndFunc struct {
+type compMethodRefer struct {
 	handleFunc reflect.Value
 }
 
-func (tf *compTypeAndFunc) Call(w http.ResponseWriter, r *http.Request) {
+type cachedCompMethodRefer struct {
+	methodRefer *compMethodRefer
+	pathVars    map[string][]string
+}
+
+func (tf *compMethodRefer) Call(w http.ResponseWriter, r *http.Request) {
 	in := make([]reflect.Value, 2)
 	in[0] = reflect.ValueOf(w)
 	in[1] = reflect.ValueOf(r)
@@ -246,7 +256,7 @@ func (re *router) inSet(sub []*pNode, name string) (*pNode, error) {
 }
 
 // 获取匹配当前请求路径的处理方法
-func (re *reactor) getMatchHandler(path string) (*compTypeAndFunc, error) {
+func (re *reactor) getMatchHandler(path string) (*compMethodRefer, error) {
 	rErr := errors.New("not exist")
 	splits := strings.Split(path, "/")
 	cNode := defaultRouter.pathTree.root
@@ -317,9 +327,10 @@ func (re *reactor) exists(sub []*pNode, name string) (*pNode, error) {
 		if strings.Index(n.name, "{") == 0 && strings.Index(n.name, "}") == len(n.name)-1 {
 			// 变量路径匹配，含有路径变量，将路径中的值作为匹配变量的值存储Request
 			formName := n.name[1 : len(n.name)-1]
-			formValue := re.Request.Form[formName]
+			formValue := re.request.Form[formName]
 			formValue = append(formValue, name)
-			re.Request.Form[formName] = formValue
+			re.request.Form[formName] = formValue
+			re.pathVariable[formName] = formValue
 			return n, nil
 		}
 		// 全路径匹配

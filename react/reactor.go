@@ -74,7 +74,7 @@ func init() {
 // 参数 url:将要注册处理的请求路径;comp:使用此组件中的方法处理请求;function:使用（指定组件中的）此方法处理请求;
 func BindGet(url string, comp interface{}, function string) {
 	url = stripLastSlash(url)
-	handle := buildHandle(comp, function)
+	handle := buildHandleFunc(comp, function)
 	defaultRouter.pathRegister(url, handle, "GET")
 	defaultRouter.pathRegister(url, handle, "OPTIONS")
 	log.Info("已绑定GET方法路径：" + url)
@@ -84,13 +84,13 @@ func BindGet(url string, comp interface{}, function string) {
 // 参数 url:将要注册处理的请求路径;comp:使用此组件中的方法处理请求;function:使用（指定组件中的）此方法处理请求;
 func BindPost(url string, comp interface{}, function string) {
 	url = stripLastSlash(url)
-	handle := buildHandle(comp, function)
+	handle := buildHandleFunc(comp, function)
 	defaultRouter.pathRegister(url, handle, "POST")
 	defaultRouter.pathRegister(url, handle, "OPTIONS")
 	log.Info("已绑定POST方法路径：" + url)
 }
 
-func buildHandle(comp interface{}, function string) *handleMethodRefer {
+func buildHandleFunc(comp interface{}, function string) *handleMethodRefer {
 	v := reflect.ValueOf(comp)
 	handleFunc := v.MethodByName(function)
 	return &handleMethodRefer{

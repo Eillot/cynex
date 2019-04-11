@@ -131,13 +131,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) acceptAndProcess(re *reactor) {
-	defer func() {
+	defer func(re *reactor) {
 		re.responseWriter = nil
 		re.request = nil
-		re.reactorPool = nil
 		re.pathVariable = nil
 		re.reactorPool.Put(re)
-	}()
+	}(re)
 	re.request.ParseForm()
 	var uri = re.request.RequestURI
 	if qi := strings.Index(uri, "?"); qi > 0 {

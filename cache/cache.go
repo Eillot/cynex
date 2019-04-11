@@ -17,7 +17,7 @@ func NewCache(cap ...int) *Cache {
 			Size:     0,
 			queue:    &linkedList{head: nil, tail: nil},
 			hashData: make(map[string]*node, capability),
-			mu:       &sync.RWMutex{},
+			mu:       &sync.Mutex{},
 		}
 	} else {
 		return &Cache{
@@ -25,7 +25,7 @@ func NewCache(cap ...int) *Cache {
 			Size:     0,
 			queue:    &linkedList{head: nil, tail: nil},
 			hashData: make(map[string]*node, cap[0]),
-			mu:       &sync.RWMutex{},
+			mu:       &sync.Mutex{},
 		}
 	}
 }
@@ -36,7 +36,7 @@ type Cache struct {
 
 	queue    *linkedList
 	hashData map[string]*node
-	mu       *sync.RWMutex
+	mu       *sync.Mutex
 }
 
 type node struct {
@@ -100,26 +100,27 @@ func (l *linkedList) addFirst(n *node) {
 }
 
 func (c *Cache) Get(key string) (interface{}, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
 	if n, ok := c.hashData[key]; ok {
+		c.mu.Lock()
 		c.queue.remove(n)
 		c.queue.addFirst(n)
+		c.mu.Unlock()
 		return n.val, nil
 	}
 	return "", errors.New("not exist")
 }
 
 func (c *Cache) Set(key string, val interface{}) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if n, ok := c.hashData[key]; ok {
-		c.queue.remove(n)
 		n.val = val
+		c.mu.Lock()
+		c.queue.remove(n)
 		c.queue.addFirst(n)
+		c.mu.Unlock()
 	} else {
 		n := &node{key: key, val: val, prev: nil, next: nil}
 		c.hashData[key] = n
+		c.mu.Lock()
 		c.queue.addFirst(n)
 		c.Size += 1
 		if c.Size > c.Cap {
@@ -127,5 +128,6 @@ func (c *Cache) Set(key string, val interface{}) {
 			delete(c.hashData, c.queue.tail.key)
 			c.queue.removeLast()
 		}
+		c.mu.Unlock()
 	}
 }

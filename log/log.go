@@ -78,6 +78,7 @@ func logTargetFile() io.Writer {
 	if strings.TrimSpace(Dir) == "" {
 		logFileName = "./" + date + ".log"
 	} else {
+		os.MkdirAll(Dir, os.ModePerm)
 		if strings.LastIndex(Dir, "/") != len(Dir)-1 {
 			Dir = Dir + "/"
 		}

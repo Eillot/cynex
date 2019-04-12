@@ -54,7 +54,6 @@ func init() {
 		DownloadDir: defaultDownloadDir,
 	}
 	// 配置加载
-	log.Info("正在加载配置...")
 	configs := make(map[string]string)
 	configsWd, err := conf.Load(wd)
 	if err != nil {

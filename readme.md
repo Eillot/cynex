@@ -6,7 +6,7 @@
 
 [1、配置文件读取](./conf/conf.md "应用启动配置读取")
 
-[2、WebMVC构建工具](react/react.md "WebServer和View层的快速构建")
+[2、Controller构架工具](react/react.md "WebServer和View层的快速构建")
 
 [3、LRU缓存](./cache/cache.md "其他组件依赖LRU缓存实现")
 

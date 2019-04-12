@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"reflect"
 	"regexp"
@@ -377,6 +378,11 @@ func (re *reactor) pathMatch(sub []*pNode, name string) (*pNode, error) {
 			// 变量路径匹配，含有路径变量，将路径中的值作为匹配变量的值存储Request
 			formName := n.name[1 : len(n.name)-1]
 			formValue := re.request.Form[formName]
+			nameBackup := name
+			name, err := url.PathUnescape(name)
+			if err != nil {
+				name = nameBackup
+			}
 			formValue = append(formValue, name)
 			re.request.Form[formName] = formValue
 			re.pathVariable[formName] = formValue

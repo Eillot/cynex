@@ -26,7 +26,7 @@ type User struct {
 func (u *User) Index(w http.ResponseWriter, r *http.Request) {
 	log.Debug("Index 方法已经执行")
 	strOut := ""
-	if v := r.FormValue("flag"); v != "" {
+	if v := r.FormValue("name"); v != "" {
 		for i := 0; i < 49; i++ {
 			strOut += v
 		}

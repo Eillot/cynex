@@ -133,7 +133,7 @@ key_dir = conf/server.key
 cert_dir = conf/server.crt
 
 ```
-[INI语法格式参考](../conf/conf.md "INI语法参考")
+[INI语法格式参考](./conf/conf.md "INI语法参考")
 
 
 #### 四、静态文件及文件下载路径绑定

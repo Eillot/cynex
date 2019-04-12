@@ -82,6 +82,20 @@ react.BindGet("/index/[*]", new(User), "Index")
 react.BindGet("/index/{name}", new(User), "Index")
 // 匹配 /index/John 时，在FormValue中添加名称为name值为John的变量
 ```
+##### 5、处理器组件与处理器方法
+```
+type User struct {
+}
+// 如上，处理器可任意建立
+
+func (u *User) Index(w http.ResponseWriter, r *http.Request) {
+	log.Debug("Index 方法已经执行")
+}
+
+// 处理器方法，如上；链接至处理器，方法参数必须为 http.ResponseWriter、*http.Request，方法参数数量及前后顺序均不可修改。
+
+```
+
 #### 三、Server配置
 
 ##### 1、导出变量

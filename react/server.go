@@ -42,9 +42,6 @@ func init() {
 		handler:     defaultHandler,
 		downloadDir: ".",
 	}
-}
-
-func (s *server) Start() {
 	// 配置加载
 	log.Info("正在加载配置...")
 	configs := make(map[string]string)
@@ -66,13 +63,18 @@ func (s *server) Start() {
 			configs[key] = val
 		}
 	}
-	s.Config = configs
+	Server.Config = configs
+
+}
+
+func (s *server) Start() {
+
 	// 使用配置启动服务
 	log.Info("正在启动服务...")
-	if s.getHttpsEnable(configs) {
-		go http.ListenAndServeTLS(":"+s.getHttpsPort(configs), s.getHttpsCert(configs), s.getHttpsKey(configs), s.handler)
+	if s.getHttpsEnable(Server.Config) {
+		go http.ListenAndServeTLS(":"+s.getHttpsPort(Server.Config), s.getHttpsCert(Server.Config), s.getHttpsKey(Server.Config), s.handler)
 	}
-	http.ListenAndServe(":"+s.getHttpPort(configs), s.handler)
+	http.ListenAndServe(":"+s.getHttpPort(Server.Config), s.handler)
 }
 
 // ConfigValue读取配置值

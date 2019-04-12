@@ -126,6 +126,8 @@ func main() {
 
 [default]
 download_dir = .
+log_dir = ./logs
+log_threshold = info
 
 [http]
 port = 9090

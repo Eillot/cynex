@@ -25,9 +25,10 @@ type server struct {
 }
 
 const (
-	defaultHttpPort    string = "80"
-	defaultHttpsPort   string = "443"
-	defaultDownloadDir string = "."
+	defaultHttpPort     string = "80"
+	defaultHttpsPort    string = "443"
+	defaultDownloadDir  string = "."
+	defaultLogThreshold string = "INFO"
 )
 
 const (
@@ -41,7 +42,9 @@ const (
 	httpsKeyFile  string = "https.key_dir"
 	httpsCertFile string = "https.cert_dir"
 	//
-	downloadDir string = "default.download_dir"
+	downloadDir  string = "default.download_dir"
+	logDir       string = "default.log_dir"
+	logThreshold string = "default.log_threshold"
 )
 
 func init() {
@@ -78,6 +81,9 @@ func init() {
 	Server.TLSKeyDir = Server.getHttpsKey(configs)
 	Server.TLSCertDir = Server.getHttpsCert(configs)
 	Server.HTTPSEnabled = Server.getHttpsEnable(configs)
+
+	log.Dir = Server.getLogDir(configs)
+	log.Threshold = Server.getLogThreshold(configs)
 }
 
 func (s *server) Start() {
@@ -159,12 +165,30 @@ func (s *server) getHttpsKey(configs map[string]string) string {
 }
 
 func (s *server) getDownloadDir(configs map[string]string) string {
-	downloadDir := configs[downloadDir]
-	if downloadDir != "" && strings.Index(downloadDir, "/") != 0 {
-		if strings.Index(downloadDir, "./") != 0 {
+	downDir := configs[downloadDir]
+	if downDir != "" && strings.Index(downDir, "/") != 0 {
+		if strings.Index(downDir, "./") != 0 {
 			wd, _ := os.Getwd()
-			downloadDir = wd + "/" + downloadDir
+			downDir = wd + "/" + downDir
 		}
 	}
-	return downloadDir
+	return downDir
+}
+
+func (s *server) getLogDir(configs map[string]string) string {
+	logDir := configs[logDir]
+	if logDir != "" && strings.Index(logDir, "/") != 0 {
+		if strings.Index(logDir, "./") != 0 {
+			wd, _ := os.Getwd()
+			logDir = wd + "/" + logDir
+		}
+	}
+	return logDir
+}
+
+func (s *server) getLogThreshold(configs map[string]string) string {
+	if configs[logThreshold] != "" {
+		return configs[logThreshold]
+	}
+	return defaultLogThreshold
 }

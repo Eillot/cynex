@@ -83,6 +83,7 @@ func init() {
 
 	log.Dir = Server.getLogDir(configs)
 	log.Threshold = Server.getLogThreshold(configs)
+	log.UseSetting()
 }
 
 func (s *server) Start() {

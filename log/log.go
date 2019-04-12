@@ -65,6 +65,13 @@ func Error(v ...interface{}) {
 	errorF.Println(output(v))
 }
 
+func UseSetting() {
+	debugF = log.New(logTargetFile(), "DEBUG   ", flag)
+	infoF = log.New(logTargetFile(), "INFO    ", flag)
+	warningF = log.New(logTargetFile(), "WARNING ", flag)
+	errorF = log.New(logTargetFile(), "ERROR   ", flag)
+}
+
 func logTargetFile() io.Writer {
 	date := time.Now().Format("2006-01-02")
 	logFileName := ""

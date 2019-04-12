@@ -13,15 +13,21 @@ import (
 var Server *server
 
 type server struct {
-	Config map[string]string // 配置项
+	Config       map[string]string // 配置项
+	DownloadDir  string            // 文件下载路径
+	HTTPPort     int               // HTTP端口
+	HTTPSPort    int               // HTTPS端口
+	HTTPSEnabled bool              // 是否启用HTTPS
+	TLSKeyDir    string            // HTTPS私钥文件
+	TLSCertDir   string            // HTTPS证书文件
 
-	handler     *handler
-	downloadDir string
+	handler *handler
 }
 
 const (
-	defaultHttpPort  string = "80"
-	defaultHttpsPort string = "443"
+	defaultHttpPort    string = "80"
+	defaultHttpsPort   string = "443"
+	defaultDownloadDir string = "."
 )
 
 const (
@@ -34,13 +40,15 @@ const (
 	httpsPort     string = "https.port"
 	httpsKeyFile  string = "https.key_dir"
 	httpsCertFile string = "https.cert_dir"
+	//
+	downloadDir string = "default.download_dir"
 )
 
 func init() {
 
 	Server = &server{
 		handler:     defaultHandler,
-		downloadDir: ".",
+		DownloadDir: defaultDownloadDir,
 	}
 	// 配置加载
 	log.Info("正在加载配置...")
@@ -64,7 +72,12 @@ func init() {
 		}
 	}
 	Server.Config = configs
-
+	Server.DownloadDir = Server.getDownloadDir(configs)
+	Server.HTTPPort, _ = strconv.Atoi(Server.getHttpPort(configs))
+	Server.HTTPSPort, _ = strconv.Atoi(Server.getHttpsPort(configs))
+	Server.TLSKeyDir = Server.getHttpsKey(configs)
+	Server.TLSCertDir = Server.getHttpsCert(configs)
+	Server.HTTPSEnabled = Server.getHttpsEnable(configs)
 }
 
 func (s *server) Start() {
@@ -72,9 +85,9 @@ func (s *server) Start() {
 	// 启动服务
 	log.Info("正在启动服务...")
 	if s.getHttpsEnable(Server.Config) {
-		go http.ListenAndServeTLS(":"+s.getHttpsPort(Server.Config), s.getHttpsCert(Server.Config), s.getHttpsKey(Server.Config), s.handler)
+		go http.ListenAndServeTLS(":"+strconv.Itoa(s.HTTPSPort), s.TLSCertDir, s.TLSKeyDir, s.handler)
 	}
-	http.ListenAndServe(":"+s.getHttpPort(Server.Config), s.handler)
+	http.ListenAndServe(":"+strconv.Itoa(s.HTTPPort), s.handler)
 }
 
 // ConfigValue 读取配置值
@@ -123,7 +136,7 @@ func (s *server) getHttpsPort(configs map[string]string) string {
 
 func (s *server) getHttpsCert(configs map[string]string) string {
 	dir := configs[httpsCertFile]
-	if strings.Index(dir, "/") != 0 {
+	if dir != "" && strings.Index(dir, "/") != 0 {
 		if strings.Index(dir, "./") != 0 {
 			wd, _ := os.Getwd()
 			dir = wd + "/" + dir
@@ -134,11 +147,22 @@ func (s *server) getHttpsCert(configs map[string]string) string {
 
 func (s *server) getHttpsKey(configs map[string]string) string {
 	dir := configs[httpsKeyFile]
-	if strings.Index(dir, "/") != 0 {
+	if dir != "" && strings.Index(dir, "/") != 0 {
 		if strings.Index(dir, "./") != 0 {
 			wd, _ := os.Getwd()
 			dir = wd + "/" + dir
 		}
 	}
 	return dir
+}
+
+func (s *server) getDownloadDir(configs map[string]string) string {
+	downloadDir := configs[downloadDir]
+	if downloadDir != "" && strings.Index(downloadDir, "/") != 0 {
+		if strings.Index(downloadDir, "./") != 0 {
+			wd, _ := os.Getwd()
+			downloadDir = wd + "/" + downloadDir
+		}
+	}
+	return downloadDir
 }

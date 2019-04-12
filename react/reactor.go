@@ -437,10 +437,10 @@ func (re *reactor) isDownload(uri string) (string, error) {
 	for key, val := range defaultRouter.downloads {
 		if key == uri {
 			var pp string
-			if Server.downloadDir == "." || Server.downloadDir == "./" {
+			if Server.DownloadDir == "." || Server.DownloadDir == "./" {
 				pp, _ = os.Getwd()
 			} else {
-				pp = Server.downloadDir
+				pp = Server.DownloadDir
 			}
 			rVal := pp + val
 			go func() {

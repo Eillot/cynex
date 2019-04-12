@@ -9,6 +9,8 @@
 
 ```
 go get -u github.com/GuanglinGao/cynex
+
+或打包zip文件，解压至[gopath]/src中
 ```
 
 

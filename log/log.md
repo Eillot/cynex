@@ -17,5 +17,28 @@
 
 ```
     log.Debug("debug")
+    log.Info("info")
+    log.Warning("warning")
+    log.Error("error")
+
+```
+
+#### 设置
+
+```
+log.Threshold = "INFO"
+
+// 设置文件方式输出的日志级别，高于和等于此级别的将输出至文件
+// 文件输出等级：ERROR > WARNING > INFO > DEBUG
+
+
+log.Dir = "./logs"
+
+// 设置日志文件的输出文件夹
+
+
+log.UseSetting()
+
+// （刷新）应用设置
 
 ```

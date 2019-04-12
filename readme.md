@@ -188,4 +188,8 @@ react.PipelineAfter(new(User), "After", new(User), "AfterAfter")
 [2、日志](./log/log.md "日志输出")
 
 [3、配置文件读取](./conf/conf.md "应用启动配置读取")
+
+#### 七、交流群
+
+![交流群](./Cynex框架实战群二维码.png)
      

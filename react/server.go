@@ -69,7 +69,7 @@ func init() {
 
 func (s *server) Start() {
 
-	// 使用配置启动服务
+	// 启动服务
 	log.Info("正在启动服务...")
 	if s.getHttpsEnable(Server.Config) {
 		go http.ListenAndServeTLS(":"+s.getHttpsPort(Server.Config), s.getHttpsCert(Server.Config), s.getHttpsKey(Server.Config), s.handler)
@@ -77,7 +77,7 @@ func (s *server) Start() {
 	http.ListenAndServe(":"+s.getHttpPort(Server.Config), s.handler)
 }
 
-// ConfigValue读取配置值
+// ConfigValue 读取配置值
 func (s *server) ConfigValue(name string) string {
 	return s.Config[name]
 }

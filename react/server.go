@@ -130,4 +130,5 @@ func (s *server) getHttpsKey(configs map[string]string) string {
 			dir = wd + "/" + dir
 		}
 	}
+	return dir
 }

@@ -57,6 +57,8 @@ func (u *User) Index(w http.ResponseWriter, r *http.Request) {
 ##### 3、使用默认配置，执行main方法。在浏览器可访问绑定路径的地址。
 
 
+
+
 #### 二、绑定请求路径与处理方法，Controller层API
 
 ##### 1、静态路径
@@ -69,12 +71,15 @@ react.BindGet("/index", new(User), "Index")
 ##### 2、正则，正则表达式使用小括号包裹，完全占满子路径一格（必须位于两个斜杠中间，或处于路径末尾）
 ```
 react.BindGet("/index/([0-9])", new(User), "Index")
+
 // 匹配 /index/1 等
 ```
 ##### 3、常用替换，子路径（双斜线中间的路径标识）中，使用中括号包裹，完全占满子路径一格
 ```
 react.BindGet("/index/[*dex]", new(User), "Index")
+
 // 匹配 /index/index，另有如下三种用法
+
 react.BindGet("/index/[*de*]", new(User), "Index")
 react.BindGet("/index/[inde*]", new(User), "Index")
 react.BindGet("/index/[*]", new(User), "Index")
@@ -82,12 +87,14 @@ react.BindGet("/index/[*]", new(User), "Index")
 ##### 4、路径变量，使用大括号包裹，占满子路径一格；大括号中的字段为变量名称
 ```
 react.BindGet("/index/{name}", new(User), "Index")
+
 // 匹配 /index/John 时，在FormValue中添加名称为name值为John的变量
 ```
 ##### 5、处理器组件与处理器方法
 ```
 type User struct {
 }
+
 // 处理器组件如上，处理器可任意建立
 
 func (u *User) Index(w http.ResponseWriter, r *http.Request) {
@@ -161,6 +168,7 @@ react.BindDownload("/download", "2019-04-11.log")
 // react.BindDownload("【此处为浏览器的请求地址】", "【此处为文件相对与下载目录的路径，下载目录使用配置文件配置】")
 
 react.BindStatic("/static", "/")
+
 // react.BindStatic("【此处为浏览器的请求路径，该路径下的全部子路径文件为静态文件】", "【此处为服务器中的文件夹路径】")
 
 ```
@@ -170,12 +178,14 @@ react.BindStatic("/static", "/")
 ##### 使用管道方式为处理方法设置前置处理方法与后置处理方法
 ```
 react.PipelineBefore(new(User), "Index", new(User), "Before")
+
 // react.PipelineBefore(【目标组件的指针】, "【目标方法】", 【前置组件的指针】, "【前置方法，此方法将在目标方法前执行】")
 
 
 react.PipelineBefore(new(User), "Before", new(User), "BeforeBefore")
 
 react.PipelineAfter(new(User), "Index", new(User), "After")
+
 // react.PipelineAfter(【目标组件的指针】, "【目标方法】", 【后置组件的指针】, "【后置方法，此方法将在目标方法后执行】")
 
 react.PipelineAfter(new(User), "After", new(User), "AfterAfter")

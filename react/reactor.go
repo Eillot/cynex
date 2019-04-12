@@ -319,6 +319,9 @@ func (re *reactor) matchHandler(path string) (*handleMethodRefer, error) {
 			return nil, rErr
 		} else {
 			if n, err := re.pathMatch(cNode.sub, val); err == nil {
+				if n.val == nil {
+					return nil, rErr
+				}
 				return n.val, nil
 			}
 			return nil, rErr

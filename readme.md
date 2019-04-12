@@ -10,7 +10,7 @@
 ```
 go get -u github.com/GuanglinGao/cynex
 
-或打包zip文件，解压至[gopath]/src中
+或（右上角绿色按钮）打包zip文件，解压至[gopath]/src中
 ```
 
 

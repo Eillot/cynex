@@ -30,7 +30,7 @@ func Load(dir string) (map[string]string, error) {
 		}
 	}
 	filepath.Walk(wd, func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
+		if info == nil || info.IsDir() {
 			return nil
 		}
 		lowCaseName := strings.TrimSpace(strings.ToLower(info.Name()))

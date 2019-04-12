@@ -85,8 +85,10 @@ func (s *server) Start() {
 	// 启动服务
 	log.Info("正在启动服务...")
 	if s.getHttpsEnable(Server.Config) {
+		log.Info("启动成功，正在监听:" + strconv.Itoa(s.HTTPSPort) + "端口（HTTPS）")
 		go http.ListenAndServeTLS(":"+strconv.Itoa(s.HTTPSPort), s.TLSCertDir, s.TLSKeyDir, s.handler)
 	}
+	log.Info("启动成功，正在监听:" + strconv.Itoa(s.HTTPPort) + "端口（HTTP）")
 	http.ListenAndServe(":"+strconv.Itoa(s.HTTPPort), s.handler)
 }
 

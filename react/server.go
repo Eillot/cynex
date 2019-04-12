@@ -13,6 +13,8 @@ import (
 var Server *server
 
 type server struct {
+	Config map[string]string // 配置项
+
 	handler     *handler
 	downloadDir string
 }
@@ -64,12 +66,18 @@ func (s *server) Start() {
 			configs[key] = val
 		}
 	}
+	s.Config = configs
 	// 使用配置启动服务
 	log.Info("正在启动服务...")
 	if s.getHttpsEnable(configs) {
 		go http.ListenAndServeTLS(":"+s.getHttpsPort(configs), s.getHttpsCert(configs), s.getHttpsKey(configs), s.handler)
 	}
 	http.ListenAndServe(":"+s.getHttpPort(configs), s.handler)
+}
+
+// ConfigValue读取配置值
+func (s *server) ConfigValue(name string) string {
+	return s.Config[name]
 }
 
 func (s *server) getHttpPort(configs map[string]string) string {

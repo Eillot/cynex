@@ -9,13 +9,25 @@ import (
 	"strings"
 )
 
-// Load 加载运行路径中的全部INI文件
-func Load() (map[string]string, error) {
+// Load 加载指定路径中的全部INI文件
+func Load(dir string) (map[string]string, error) {
 	confs := make(map[string]string)
 	// 遍历当前程序运行路径，读取所有INI文件
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil, err
+	}
+	if strings.Index(dir, "/") != 0 {
+		if dir != "" && dir != "." && dir != "./" {
+			dir = "/" + dir
+		}
+	}
+	locals := []string{"", ".", "./", "/"}
+	for _, local := range locals {
+		if dir != local {
+			wd = wd + dir
+			break
+		}
 	}
 	filepath.Walk(wd, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {

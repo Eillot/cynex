@@ -1,13 +1,21 @@
 package react
 
 import (
+	"cynex/log"
 	"net/http"
 	"testing"
 )
 
-func BenchmarkGet(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		c := &http.Client{}
-		c.Get("http://localhost:8080/index/3")
-	}
+type User struct {
+}
+
+func TestBindGet(t *testing.T) {
+
+	BindGet("/index", new(User), "Index")
+	Server.Start()
+
+}
+
+func (u *User) Index(w http.ResponseWriter, r *http.Request) {
+	log.Info("Index is executing...")
 }

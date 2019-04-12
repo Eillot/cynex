@@ -167,9 +167,9 @@ react.PipelineAfter(new(User), "After", new(User), "AfterAfter")
 
 #### 六、其他引用
 
-[1、配置文件读取](./conf/conf.md "应用启动配置读取")
+[1、LRU缓存](./cache/cache.md "其他组件依赖LRU缓存实现")
 
-[2、LRU缓存](./cache/cache.md "其他组件依赖LRU缓存实现")
+[2、日志](./log/log.md "日志输出")
 
-[4、日志](./log/log.md "日志输出")
+[3、配置文件读取](./conf/conf.md "应用启动配置读取")
      

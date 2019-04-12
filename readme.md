@@ -64,12 +64,12 @@ react.BindGet("/index", new(User), "Index")
 
 // react.BindGet("【此处为浏览器请求路径】", 【此处为响应处理组件指针】, "【此处为处理方法名，将使用此方法处理请求】")
 ```
-##### 2、正则，正则表达式使用小括号包裹，完全占满子路径
+##### 2、正则，正则表达式使用小括号包裹，完全占满子路径一格（必须位于两个斜杠中间，或处于路径末尾）
 ```
 react.BindGet("/index/([0-9])", new(User), "Index")
 // 匹配 /index/1 等
 ```
-##### 3、常用替换，子路径（双斜线中间的路径标识）中，使用中括号包裹，完全占满子路径
+##### 3、常用替换，子路径（双斜线中间的路径标识）中，使用中括号包裹，完全占满子路径一格
 ```
 react.BindGet("/index/[*dex]", new(User), "Index")
 // 匹配 /index/index，另有如下三种用法
@@ -77,7 +77,7 @@ react.BindGet("/index/[*de*]", new(User), "Index")
 react.BindGet("/index/[inde*]", new(User), "Index")
 react.BindGet("/index/[*]", new(User), "Index")
 ```
-##### 4、路径变量，使用大括号包裹，占满子路径；大括号中的字段为变量名称
+##### 4、路径变量，使用大括号包裹，占满子路径一格；大括号中的字段为变量名称
 ```
 react.BindGet("/index/{name}", new(User), "Index")
 // 匹配 /index/John 时，在FormValue中添加名称为name值为John的变量
@@ -86,7 +86,7 @@ react.BindGet("/index/{name}", new(User), "Index")
 ```
 type User struct {
 }
-// 如上，处理器可任意建立
+// 处理器组件如上，处理器可任意建立
 
 func (u *User) Index(w http.ResponseWriter, r *http.Request) {
 	log.Debug("Index 方法已经执行")

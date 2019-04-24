@@ -8,7 +8,7 @@
 #### 〇、下载与引用
 
 ```
-go get -u github.com/GuanglinGao/cynex...
+go get -u github.com/GuanglinGao/cynex
 
 或（右上角绿色按钮）打包zip文件，解压至[gopath]/src中
 ```
